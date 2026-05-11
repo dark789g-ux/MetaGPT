@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat examples/stanford_town/requirements.txt; echo \"---config:---\"; ls ~/.metagpt/ 2>&1)",
+      "Read(//c/Users/dark7/**)",
+      "Bash(python -c \"import metagpt; print\\(metagpt.__version__, metagpt.__file__\\)\")",
+      "Bash(mkdir -p ~/.metagpt)",
+      "Bash(cp config/config2.example.yaml ~/.metagpt/config2.yaml)",
+      "Bash(git clone *)",
+      "Bash(pip install *)",
+      "Bash(py -0p)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\dark7\\.metagpt"
+    ]
+  }
+}
