@@ -13,7 +13,7 @@ class GenActionSector(STAction):
     name: str = "GenActionSector"
 
     def _func_cleanup(self, llm_resp: str, prompt: str):
-        cleaned_response = llm_resp.split("}")[0]
+        cleaned_response = llm_resp.split("}")[0].lstrip("{").strip()
         return cleaned_response
 
     def _func_validate(self, llm_resp: str, prompt: str):
@@ -98,7 +98,7 @@ class GenActionArena(STAction):
     name: str = "GenActionArena"
 
     def _func_cleanup(self, llm_resp: str, prompt: str):
-        cleaned_response = llm_resp.split("}")[0]
+        cleaned_response = llm_resp.split("}")[0].lstrip("{").strip()
         return cleaned_response
 
     def _func_validate(self, llm_resp: str, prompt: str):

@@ -47,16 +47,43 @@ def read_csv_to_list(curr_file: str, header=False, strip_trail=True):
         return analysis_list[0], analysis_list[1:]
 
 
+def is_embedding_disabled() -> bool:
+    """Return True when no usable embedding endpoint is configured.
+
+    In that case Stanford Town falls back to a stub vector and the retrieval
+    layer skips cosine similarity, effectively feeding the full memory pool to
+    the LLM each time.
+    """
+    embed_cfg = getattr(config, "embedding", None)
+    if not embed_cfg:
+        return True
+    return not (embed_cfg.api_key or embed_cfg.base_url)
+
+
+_STUB_EMBEDDING = [0.0]
+
+
 def get_embedding(text, model: str = "text-embedding-ada-002"):
-    text = text.replace("\n", " ")
-    embedding = None
+    text = (text or "").replace("\n", " ")
     if not text:
         text = "this is blank"
+
+    if is_embedding_disabled():
+        return list(_STUB_EMBEDDING)
+
+    embed_cfg = config.embedding
+    client_kwargs = {"api_key": embed_cfg.api_key or config.llm.api_key}
+    if embed_cfg.base_url:
+        client_kwargs["base_url"] = embed_cfg.base_url
+    model_name = embed_cfg.model or model
+
+    embedding = None
     for idx in range(3):
         try:
             embedding = (
-                OpenAI(api_key=config.llm.api_key).embeddings.create(input=[text], model=model).data[0].embedding
+                OpenAI(**client_kwargs).embeddings.create(input=[text], model=model_name).data[0].embedding
             )
+            break
         except Exception as exp:
             logger.info(f"get_embedding failed, exp: {exp}, will retry.")
             time.sleep(5)

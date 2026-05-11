@@ -149,6 +149,10 @@ class OpenAILLM(BaseLLM):
             # compatible to openai o1-series
             kwargs["temperature"] = 1
             kwargs.pop("max_tokens")
+        if getattr(self.config, "extra_body", None):
+            # Forwarded as-is to the underlying provider via openai SDK's `extra_body`.
+            # e.g. `{"thinking": {"type": "disabled"}}` to disable DeepSeek thinking mode.
+            kwargs["extra_body"] = self.config.extra_body
         if extra_kwargs:
             kwargs.update(extra_kwargs)
         return kwargs

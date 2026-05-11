@@ -113,6 +113,10 @@ class LLMConfig(YamlModel):
     reasoning: bool = False
     reasoning_max_token: int = 4000  # reasoning budget tokens to generate, usually smaller than max_token
 
+    # Extra request body forwarded to OpenAI-compatible providers via openai SDK's `extra_body`.
+    # Useful e.g. to send `{"thinking": {"type": "disabled"}}` to DeepSeek thinking-mode models.
+    extra_body: Optional[dict] = None
+
     @field_validator("api_key")
     @classmethod
     def check_llm_key(cls, v):

@@ -8,7 +8,7 @@ from numpy import dot
 from numpy.linalg import norm
 
 from metagpt.ext.stanford_town.memory.agent_memory import BasicMemory
-from metagpt.ext.stanford_town.utils.utils import get_embedding
+from metagpt.ext.stanford_town.utils.utils import get_embedding, is_embedding_disabled
 
 
 def agent_retrieve(
@@ -35,6 +35,9 @@ def agent_retrieve(
     memories = nodes
     agent_memory_embedding = agent_memory.embeddings
     memories = sorted(memories, key=lambda memory_node: memory_node.last_accessed, reverse=True)
+
+    if is_embedding_disabled():
+        topk = max(topk, len(memories))
 
     score_list = []
     score_list = extract_importance(memories, score_list)
@@ -107,6 +110,11 @@ def extract_relevance(agent_memory_embedding, query, score_list):
     """
     抽取相关性
     """
+    if is_embedding_disabled():
+        for i in range(len(score_list)):
+            score_list[i]["relevance"] = 1.0
+        return score_list
+
     query_embedding = get_embedding(query)
     # 进行
     for i in range(len(score_list)):
