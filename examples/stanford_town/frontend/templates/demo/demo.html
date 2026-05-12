@@ -22,12 +22,22 @@
 			</div>
 			<div class="col-md-4">
 				<h2 style="text-align: right; {% if mode == 'simulate' %} display: none {% endif %}">
+					<div class="btn-group" role="group" style="margin-right:0.5em">
+						<button type="button" class="btn btn-default btn-sm speed-btn {% if play_speed == 1 %}active{% endif %}" data-speed="1">0.5×</button>
+						<button type="button" class="btn btn-default btn-sm speed-btn {% if play_speed == 2 %}active{% endif %}" data-speed="2">1×</button>
+						<button type="button" class="btn btn-default btn-sm speed-btn {% if play_speed == 4 %}active{% endif %}" data-speed="4">2×</button>
+						<button type="button" class="btn btn-default btn-sm speed-btn {% if play_speed == 8 %}active{% endif %}" data-speed="8">4×</button>
+					</div>
 					<button id="play_button" type="button" class="btn btn-default">
 				    <strong style=" font-size:1.2em"><i class="glyphicon glyphicon-play"></i> &nbsp;Play</strong>
 				  </button>
-				  
+
 				  <button id="pause_button" type="button" class="btn btn-default">
 				    <strong style=" font-size:1.2em"><i class="glyphicon glyphicon-pause"></i> &nbsp;Pause</strong>
+				  </button>
+
+				  <button id="step_button" type="button" class="btn btn-default">
+				    <strong style=" font-size:1.2em"><i class="glyphicon glyphicon-step-forward"></i> &nbsp;下一步</strong>
 				  </button>
 				</h2>
 			</div>
