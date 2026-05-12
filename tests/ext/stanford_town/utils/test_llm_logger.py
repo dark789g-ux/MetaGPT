@@ -97,6 +97,7 @@ from metagpt.ext.stanford_town.actions.st_action import STAction
 
 class _DummyAction(STAction):
     name: str = "Dummy"
+    fail_default_resp: str = "DEFAULT"
 
     def _func_validate(self, llm_resp, prompt):
         return True
@@ -145,3 +146,19 @@ def test_aask_logs_on_error(tmp_path):
     assert len(rows) == 1
     assert rows[0]["response"] is None
     assert "boom" in rows[0]["error"]
+
+
+def test_run_gpt35_max_tokens_logs_each_retry_and_fail_default(tmp_path, monkeypatch):
+    llm_logger.set_sim_code("sim_retry")
+    action = _make_action_with_mock_llm(raises=RuntimeError("fail"))
+    monkeypatch.setattr("metagpt.ext.stanford_town.actions.st_action.time.sleep", lambda *_: None)
+    result = asyncio.run(action._run_gpt35_max_tokens("prompt-x", max_tokens=64, retry=2))
+    assert result == "DEFAULT"  # _func_fail_default_resp via fail_default_resp
+    rows = _read_jsonl(tmp_path / "sim_retry" / "llm_logs.jsonl")
+    # 2 retries (each producing a _aask log with retry_idx=0 inside _aask) + 1 fail_default record
+    # _aask logs the call attempt; _run_gpt35_max_tokens adds a separate retry_idx record on top.
+    # We assert at least one record has used_fail_default=True.
+    assert any(r["used_fail_default"] for r in rows)
+    # And the per-retry records carry retry_idx 0 and 1.
+    retry_indices = sorted({r["retry_idx"] for r in rows if not r["used_fail_default"]})
+    assert retry_indices == [0, 1]

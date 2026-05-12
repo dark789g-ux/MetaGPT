@@ -100,23 +100,50 @@ class STAction(Action):
             )
 
     async def _run_gpt35_max_tokens(self, prompt: str, max_tokens: int = 50, retry: int = 3):
+        from metagpt.ext.stanford_town.utils import llm_logger as _llm_logger
+
         strict_prompt = prompt.rstrip() + GPT35_STRICT_SUFFIX
         effective_max_tokens = max(max_tokens, GPT35_MIN_MAX_TOKENS)
         for idx in range(retry):
             try:
                 tmp_max_tokens_rsp = getattr(self.config.llm, "max_token", 1500)
                 setattr(self.config.llm, "max_token", effective_max_tokens)
-                self.llm.use_system_prompt = False  # to make it behave like a non-chat completions
+                self.llm.use_system_prompt = False
 
+                # _aask logs itself; we tag the latest log record's retry_idx after the fact
+                # by writing a second pseudo-record only when validation fails. Simpler: rely on
+                # the per-attempt _aask log + a marker record on fail_default below.
+                _llm_logger.set_action(self.cls_name)
                 llm_resp = await self._aask(strict_prompt)
 
                 setattr(self.config.llm, "max_token", tmp_max_tokens_rsp)
                 logger.info(f"Action: {self.cls_name} llm _run_gpt35_max_tokens raw resp: {llm_resp}")
                 if self._func_validate(llm_resp, prompt):
                     return self._func_cleanup(llm_resp, prompt)
+                # validation failed → record retry index marker
+                _llm_logger.log_call(
+                    prompt="", response=llm_resp, model=getattr(self.config.llm, "model", None),
+                    params={"max_tokens": effective_max_tokens},
+                    usage=None, cost_usd=None, latency_ms=0,
+                    retry_idx=idx, used_fail_default=False,
+                    error="func_validate returned False",
+                )
             except Exception as exp:
                 logger.warning(f"Action: {self.cls_name} _run_gpt35_max_tokens exp: {exp}")
+                _llm_logger.log_call(
+                    prompt="", response=None, model=getattr(self.config.llm, "model", None),
+                    params={"max_tokens": effective_max_tokens},
+                    usage=None, cost_usd=None, latency_ms=0,
+                    retry_idx=idx, used_fail_default=False,
+                    error=repr(exp),
+                )
                 time.sleep(5)
+        _llm_logger.log_call(
+            prompt="", response=self.fail_default_resp,
+            model=getattr(self.config.llm, "model", None),
+            params={}, usage=None, cost_usd=None, latency_ms=0,
+            retry_idx=retry, used_fail_default=True, error=None,
+        )
         return self.fail_default_resp
 
     async def _run_gpt35(
