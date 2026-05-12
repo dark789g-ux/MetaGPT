@@ -122,11 +122,18 @@
 	let pending_movement_speed = null;
 	let manual_step_pending = false;
 	let play_context = null;
+	// Gate the simulation update without calling scene.pause(), which would also
+	// disable the scene's InputPlugin and kill pointer-based camera drag/zoom.
+	let simulation_paused = false;
 
-	// <timer_max> determines how frequently our update function will query the 
-	// frontend server. If it's higher, we wait longer cycles. 
-	let timer_max = 0;
+	// <timer_max> determines how frequently our update function will query the
+	// frontend server. Phaser calls update() at ~60 FPS, so timer_max=30 means
+	// we poll the backend at most ~2x/sec. We also guard with update_in_flight
+	// so a slow backend (e.g. a fresh sim that hasn't produced step 0 yet)
+	// can't pile up dozens of overlapping XHRs per second.
+	let timer_max = 30;
 	let timer = timer_max;
+	let update_in_flight = false;
 
 	// <phase> -- there are three phases: "process," "update," and "execute."
 	let phase = "update"; // or "update" or "execute"
@@ -389,7 +396,7 @@
 	  // manually from the first frame (only in replay mode; live simulate keeps running).
 	  play_context = this;
 	  if (OFFLINE_MOVEMENT) {
-	    this.scene.pause();
+	    simulation_paused = true;
 	  }
 	}
 
@@ -415,6 +422,12 @@
 	    player.body.setVelocityY(camera_speed);
 	  }
 
+	  // Hold the simulation here while paused. The scene itself keeps running so
+	  // pointer drag/zoom handlers stay alive; only time-advancing logic stops.
+	  if (simulation_paused) {
+	    return;
+	  }
+
 	  // console.log("phase: " + phase + ", step: " + step);
 	  // *** OFFLINE REPLAY PATH ***
 	  // When the view injected a local movement dict, skip the AJAX phases entirely.
@@ -430,7 +443,7 @@
 	      if (!OFFLINE_END) {
 	        OFFLINE_END = true;
 	        document.getElementById("game-time-content").innerHTML += " <small>(end of replay)</small>";
-	        play_context.scene.pause();
+	        simulation_paused = true;
 	      }
 	      return;
 	    }
@@ -475,24 +488,28 @@
 	    // Note that we do not want to overburden the backend too much by 
 	    // over-querying; so, we have a timer set so we only query it once every
 	    // timer_max cycles. 
-	    if (timer <= 0) {
+	    if (timer <= 0 && !update_in_flight) {
+	      update_in_flight = true;
 	      var update_xobj = new XMLHttpRequest();
 	      update_xobj.overrideMimeType("application/json");
 	      update_xobj.open('POST', "{% url 'update_environment' %}", true);
+	      update_xobj.addEventListener("loadend", function() {
+	        update_in_flight = false;
+	        timer = timer_max;
+	      });
 	      update_xobj.addEventListener("load", function() {
-	        if (this.readyState === 4) {
-	          if (update_xobj.status === 200) {
-	            if (JSON.parse(update_xobj.responseText)["<step>"] == step) {
-	              execute_movement = JSON.parse(update_xobj.responseText)
-	              phase = "execute";
-	            }
-	            timer = timer_max;
+	        if (this.readyState === 4 && update_xobj.status === 200) {
+	          if (JSON.parse(update_xobj.responseText)["<step>"] == step) {
+	            execute_movement = JSON.parse(update_xobj.responseText)
+	            phase = "execute";
 	          }
 	        }
 	      });
-	      update_xobj.send(JSON.stringify({"step": step, "sim_code": sim_code }));   
+	      update_xobj.send(JSON.stringify({"step": step, "sim_code": sim_code }));
 	    }
-	    timer = timer - 1; 
+	    if (!update_in_flight) {
+	      timer = timer - 1;
+	    }
 	  } 
 
 	  else { 
@@ -601,7 +618,7 @@
 	        execute_count = execute_count_max + 1;
 	        step = step + 1;
 	        if (manual_step_pending) {
-	          play_context.scene.pause();
+	          simulation_paused = true;
 	          manual_step_pending = false;
 	        }
 	      }
@@ -641,10 +658,10 @@
 	var step_button=document.getElementById("step_button");
 
 	play_button.onclick = function () {
-	    if (play_context) play_context.scene.resume();
+	    simulation_paused = false;
 	};
 	pause_button.onclick = function () {
-	    if (play_context) play_context.scene.pause();
+	    simulation_paused = true;
 	};
 
 	document.querySelectorAll('.speed-btn').forEach(function (btn) {
@@ -659,7 +676,7 @@
 
 	if (step_button) {
 	    step_button.onclick = function () {
-	        if (play_context) play_context.scene.resume();
+	        simulation_paused = false;
 	        manual_step_pending = true;
 	    };
 	}

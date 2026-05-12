@@ -70,9 +70,9 @@ class BasicMemory(Message):
         node_id = self.memory_id
         basic_mem_obj = self.model_dump(
             include=[
-                "node_count",
+                "memory_count",
                 "type_count",
-                "type",
+                "memory_type",
                 "depth",
                 "created",
                 "expiration",
@@ -87,6 +87,12 @@ class BasicMemory(Message):
                 "cause_by",
             ]
         )
+        # GA's nodes.json uses "node_count"/"type" keys; our model fields are
+        # named memory_count/memory_type to avoid clashing with pydantic's
+        # `type` reserved name. Rename on the way out so the loader and the
+        # replay frontend (translator/views.py) find the expected keys.
+        basic_mem_obj["node_count"] = basic_mem_obj.pop("memory_count")
+        basic_mem_obj["type"] = basic_mem_obj.pop("memory_type")
 
         memory_dict[node_id] = basic_mem_obj
         return memory_dict
