@@ -85,3 +85,63 @@ def test_no_sim_code_is_noop(tmp_path):
         cost_usd=None, latency_ms=0, retry_idx=0, used_fail_default=False, error=None,
     )
     assert list(tmp_path.iterdir()) == []
+
+
+import asyncio
+import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from metagpt.ext.stanford_town.actions.st_action import STAction
+
+
+class _DummyAction(STAction):
+    name: str = "Dummy"
+
+    def _func_validate(self, llm_resp, prompt):
+        return True
+
+    def _func_cleanup(self, llm_resp, prompt):
+        return llm_resp
+
+    def _func_fail_default_resp(self):
+        return "DEFAULT"
+
+
+def _make_action_with_mock_llm(response="OK", raises=None):
+    action = _DummyAction()
+    llm = SimpleNamespace(
+        aask=AsyncMock(side_effect=raises) if raises else AsyncMock(return_value=response),
+        use_system_prompt=True,
+    )
+    cfg_llm = SimpleNamespace(model="deepseek-chat", temperature=0.7, max_token=1500)
+    object.__setattr__(action, "_llm_for_test", llm)
+    type(action).llm = property(lambda self: self._llm_for_test)
+    object.__setattr__(action, "_cfg_for_test", SimpleNamespace(llm=cfg_llm))
+    type(action).config = property(lambda self: self._cfg_for_test)
+    return action
+
+
+def test_aask_logs_on_success(tmp_path):
+    llm_logger.set_sim_code("sim_aask")
+    action = _make_action_with_mock_llm(response="hello")
+    result = asyncio.run(action._aask("hi"))
+    assert result == "hello"
+    rows = _read_jsonl(tmp_path / "sim_aask" / "llm_logs.jsonl")
+    assert len(rows) == 1
+    assert rows[0]["prompt"] == "hi"
+    assert rows[0]["response"] == "hello"
+    assert rows[0]["action"] == "_DummyAction"
+    assert rows[0]["model"] == "deepseek-chat"
+    assert rows[0]["error"] is None
+
+
+def test_aask_logs_on_error(tmp_path):
+    llm_logger.set_sim_code("sim_err")
+    action = _make_action_with_mock_llm(raises=RuntimeError("boom"))
+    with pytest.raises(RuntimeError):
+        asyncio.run(action._aask("hi"))
+    rows = _read_jsonl(tmp_path / "sim_err" / "llm_logs.jsonl")
+    assert len(rows) == 1
+    assert rows[0]["response"] is None
+    assert "boom" in rows[0]["error"]

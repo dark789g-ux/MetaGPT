@@ -67,7 +67,37 @@ class STAction(Action):
         return prompt.strip()
 
     async def _aask(self, prompt: str) -> str:
-        return await self.llm.aask(prompt)
+        import time as _time
+        from metagpt.ext.stanford_town.utils import llm_logger as _llm_logger
+
+        _llm_logger.set_action(self.cls_name)
+        t0 = _time.monotonic()
+        response: Optional[str] = None
+        error: Optional[str] = None
+        try:
+            response = await self.llm.aask(prompt)
+            return response
+        except Exception as exc:
+            error = repr(exc)
+            raise
+        finally:
+            cfg_llm = getattr(self.config, "llm", None)
+            params = {
+                "temperature": getattr(cfg_llm, "temperature", None),
+                "max_tokens": getattr(cfg_llm, "max_token", None),
+            }
+            _llm_logger.log_call(
+                prompt=prompt,
+                response=response,
+                model=getattr(cfg_llm, "model", None),
+                params=params,
+                usage=None,
+                cost_usd=None,
+                latency_ms=int((_time.monotonic() - t0) * 1000),
+                retry_idx=0,
+                used_fail_default=False,
+                error=error,
+            )
 
     async def _run_gpt35_max_tokens(self, prompt: str, max_tokens: int = 50, retry: int = 3):
         strict_prompt = prompt.rstrip() + GPT35_STRICT_SUFFIX
