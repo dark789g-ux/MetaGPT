@@ -2,6 +2,16 @@
 
 记录 stanford_town 前端回放界面每块 UI 对应的源码路径，方便直接复制定位。
 
+## Dashboard 页（启动 / 选择存档入口）
+
+**模板文件**: [examples/stanford_town/frontend/templates/landing/landing.html](examples/stanford_town/frontend/templates/landing/landing.html)
+
+- 页面 H1 即为 "Stanford Town Dashboard"，含三块：启动新模拟（表单 POST → `/start_simulation/`）、存档列表（点击跳 `/replay/<sim_code>/0/`）、基于存档一键 rerun。
+- 视图：[translator/views.py:25-36](examples/stanford_town/frontend/translator/views.py#L25-L36) `landing()`
+- 路由：[frontend_server/urls.py:24](examples/stanford_town/frontend/frontend_server/urls.py#L24) — `^$` → `landing`
+- 存档列表数据来源：`translator/sim_utils.py` 的 `list_simulations(storage, compressed_storage)`
+- 启动后端处理：[translator/views.py:39-126](examples/stanford_town/frontend/translator/views.py#L39-L126) `start_simulation()` → `sim_utils.start_backend()` 拉起 `run_st_game.py` 子进程
+
 ## URL → 模板路径
 
 | URL 入口 | View | 模板 | 主脚本 |
@@ -9,6 +19,7 @@
 | `/replay/<sim_code>/<step>/` | `translator.views.replay` | `templates/home/home.html` | `templates/home/main_script.html` |
 | `/demo/<sim_code>/<step>/<play_speed>/` | `translator.views.demo` | `templates/demo/demo.html` | `templates/demo/main_script.html` |
 | `/simulator_home` | `translator.views.home` | `templates/home/home.html` | `templates/home/main_script.html` |
+| `/llm_logs/<sim_code>/` | `translator.views.llm_logs_page` | `templates/llm_logs/llm_logs.html` | (inline `<script>` in template) |
 
 源码定位：
 
@@ -81,3 +92,15 @@
 - **改了模板没生效** → Django dev server 用 `--noreload` 启动时，进程内存里的旧模板/Python 模块不会刷新；改 Python 必须重启，改模板理论上不需要但保险起见也重启
 - **走 `/replay/` 看不到 demo 的改动** → 两套模板（`home/` vs `demo/`），改动需要同步
 - **`play_speed` URL 显式带值与缺省值** → `views.py:205` 的快捷入口写死 `play_speed="3"`，不走 URL 缺省
+
+## LLM Logs 页（独立 Tab）
+
+- 页面模板：[examples/stanford_town/frontend/templates/llm_logs/llm_logs.html](examples/stanford_town/frontend/templates/llm_logs/llm_logs.html)
+- 页面视图：`translator.views.llm_logs_page`
+- 增量 API：`GET /llm_logs/<sim_code>/tail?offset=<bytes>` → `translator.views.llm_logs_tail`
+- 数据源：`examples/stanford_town/storage/<sim_code>/llm_logs.jsonl`（append-only，单文件）
+- 后端埋点：
+  - 写入器：[metagpt/ext/stanford_town/utils/llm_logger.py](metagpt/ext/stanford_town/utils/llm_logger.py)
+  - 包装点：[metagpt/ext/stanford_town/actions/st_action.py](metagpt/ext/stanford_town/actions/st_action.py) 的 `_aask` 与 `_run_gpt35_max_tokens`
+  - 上下文注入：`run_st_game.py` 设 sim_code；`STRole._observe` 设 step/persona
+- 入口链接：`templates/home/home.html` 标题区右侧 "📋 LLM Logs"
