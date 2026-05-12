@@ -11,6 +11,7 @@ import fire
 
 from metagpt.ext.stanford_town.roles.st_role import STRole
 from metagpt.ext.stanford_town.stanford_town import StanfordTown
+from metagpt.ext.stanford_town.utils import llm_logger
 from metagpt.ext.stanford_town.utils.const import STORAGE_PATH
 from metagpt.ext.stanford_town.utils.mg_ga_transform import (
     get_reverie_meta,
@@ -74,6 +75,7 @@ async def startup(
 
     # init temp_storage
     write_curr_sim_code({"sim_code": sim_code}, temp_storage_path)
+    llm_logger.set_sim_code(sim_code)
     write_curr_step({"step": reverie_meta.get("step", 0)}, temp_storage_path)
 
     await town.hire(roles)

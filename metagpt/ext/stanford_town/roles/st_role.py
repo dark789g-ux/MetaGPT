@@ -38,6 +38,7 @@ from metagpt.ext.stanford_town.memory.scratch import Scratch
 from metagpt.ext.stanford_town.memory.spatial_memory import MemoryTree
 from metagpt.ext.stanford_town.plan.st_plan import plan
 from metagpt.ext.stanford_town.reflect.reflect import generate_poig_score, role_reflect
+from metagpt.ext.stanford_town.utils import llm_logger
 from metagpt.ext.stanford_town.utils.const import STORAGE_PATH, collision_block_id
 from metagpt.ext.stanford_town.utils.mg_ga_transform import (
     get_role_environment,
@@ -170,6 +171,8 @@ class STRole(Role):
         logger.info(f"Role: {self.name} saved role's memory into {str(self.role_storage_path)}")
 
     async def _observe(self) -> int:
+        llm_logger.set_step(self.step)
+        llm_logger.set_persona(self.name)
         if not self.rc.env:
             return 0
         news = []
