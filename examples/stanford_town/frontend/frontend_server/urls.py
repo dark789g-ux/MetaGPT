@@ -31,5 +31,7 @@ urlpatterns = [
     re_path(r'^path_tester/$', translator_views.path_tester, name='path_tester'),
     re_path(r'^path_tester_update/$', translator_views.path_tester_update, name='path_tester_update'),
     re_path(r'^start_simulation/$', translator_views.start_simulation, name='start_simulation'),
+    re_path(r'^llm_logs/(?P<sim_code>[\w-]+)/$', translator_views.llm_logs_page, name='llm_logs_page'),
+    re_path(r'^llm_logs/(?P<sim_code>[\w-]+)/tail$', translator_views.llm_logs_tail, name='llm_logs_tail'),
     path('admin/', admin.site.urls),
 ]

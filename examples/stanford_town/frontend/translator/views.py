@@ -482,6 +482,92 @@ def path_tester_update(request):
   return HttpResponse("received")
 
 
+import json as _json
+import time as _time
+from pathlib import Path as _Path
+
+from django.http import JsonResponse, Http404
+from django.conf import settings as _settings
+from django.shortcuts import render as _render
+
+
+def _llm_logs_path(sim_code: str) -> _Path:
+    # Mirrors metagpt.ext.stanford_town.utils.const.STORAGE_PATH
+    return _Path(_settings.BASE_DIR).parent / "storage" / sim_code / "llm_logs.jsonl"
+
+
+def _curr_sim_code() -> str | None:
+    try:
+        p = _Path(_settings.BASE_DIR).parent / "temp_storage" / "curr_sim_code.json"
+        return _json.loads(p.read_text(encoding="utf-8")).get("sim_code")
+    except Exception:
+        return None
+
+
+def llm_logs_tail(request, sim_code: str):
+    try:
+        offset = int(request.GET.get("offset", "0"))
+    except ValueError:
+        offset = 0
+    try:
+        limit = int(request.GET.get("limit", "0")) or None
+    except ValueError:
+        limit = None
+
+    path = _llm_logs_path(sim_code)
+    if not path.exists():
+        return JsonResponse({"next_offset": 0, "eof": True, "is_live": False, "entries": []})
+
+    size = path.stat().st_size
+
+    # offset = -1 → tail mode: return the last `limit` (default 200) entries
+    if offset < 0:
+        n = limit or 200
+        with path.open("rb") as f:
+            f.seek(0, 2)
+            end = f.tell()
+            block = 65536
+            data = b""
+            pos = end
+            while pos > 0 and data.count(b"\n") <= n + 1:
+                read = min(block, pos)
+                pos -= read
+                f.seek(pos)
+                data = f.read(read) + data
+            lines = data.splitlines()[-n:]
+            start_offset = end - sum(len(l) + 1 for l in lines)
+    else:
+        start_offset = min(offset, size)
+        with path.open("rb") as f:
+            f.seek(start_offset)
+            lines = f.read().splitlines()
+
+    entries = []
+    for raw in lines:
+        if not raw.strip():
+            continue
+        try:
+            entries.append(_json.loads(raw.decode("utf-8")))
+        except _json.JSONDecodeError:
+            # half-written tail line: stop here so the client reads it next poll
+            break
+
+    consumed = sum(len(_json.dumps(e, ensure_ascii=False).encode("utf-8")) + 1 for e in entries)
+    next_offset = start_offset + consumed if offset >= 0 else size
+
+    mtime = path.stat().st_mtime
+    is_live = (_curr_sim_code() == sim_code) and (_time.time() - mtime < 30)
+
+    return JsonResponse(
+        {"next_offset": next_offset, "eof": next_offset >= size, "is_live": is_live, "entries": entries},
+        json_dumps_params={"ensure_ascii": False},
+    )
+
+
+def llm_logs_page(request, sim_code: str):
+    return _render(request, "llm_logs/llm_logs.html", {"sim_code": sim_code})
+
+
 
 
 
