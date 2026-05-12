@@ -47,6 +47,13 @@ def start_simulation(request):
   idea = (request.POST.get("idea") or "").strip()
   sim_code = (request.POST.get("sim_code") or "").strip()
   fork_sim_code = (request.POST.get("fork_sim_code") or "").strip()
+  personas_raw = (request.POST.get("personas") or "").strip()
+  inner_voice = (request.POST.get("inner_voice") or "").strip() or None
+  personas: list[str] | None
+  if personas_raw:
+    personas = [p.strip() for p in personas_raw.split(",") if p.strip()]
+  else:
+    personas = None
 
   try:
     n_round = int(request.POST.get("n_round") or 30)
@@ -71,6 +78,10 @@ def start_simulation(request):
   if err:
     return JsonResponse({"ok": False, "error": err}, status=400)
 
+  err = sim_utils.validate_personas(personas, inner_voice, fork_sim_code, storage)
+  if err:
+    return JsonResponse({"ok": False, "error": err}, status=400)
+
   try:
     proc, log_dir = sim_utils.start_backend(
       idea=idea,
@@ -80,6 +91,8 @@ def start_simulation(request):
       investment=investment,
       st_root=root,
       log_dir=Path(__file__).resolve().parent.parent / "logs",
+      personas=personas,
+      inner_voice=inner_voice,
     )
   except Exception as exc:
     return JsonResponse({"ok": False, "error": f"failed to spawn backend: {exc}"}, status=500)
