@@ -89,7 +89,11 @@ class STRole(Role):
     @field_validator("start_time", mode="before")
     @classmethod
     def check_start_time(cls, start_time: str) -> datetime:
-        return datetime.strptime(f"{start_time}, 00:00:00", "%B %d, %Y, %H:%M:%S")
+        # Accept either bare-date (legacy) or full long-English datetime (new).
+        try:
+            return datetime.strptime(start_time, "%B %d, %Y, %H:%M:%S")
+        except ValueError:
+            return datetime.strptime(f"{start_time}, 00:00:00", "%B %d, %Y, %H:%M:%S")
 
     @model_validator(mode="after")
     def validate_st_role_after(self):
