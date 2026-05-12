@@ -331,26 +331,16 @@
 		    frameRate: 4,
 		    repeat: -1 });
 	  }
+
+	  // Save scene context for external button handlers, then start paused so
+	  // the user can step manually from the first frame.
+	  play_context = this;
+	  this.scene.pause();
 	}
 
 
 	function update(time, delta) {
-		// *** SETUP PLAY AND PAUSE BUTTON ***
-		play_context = this;
-		function game_resume() {  
-			play_context.scene.resume();
-		}  
-		play_button.onclick = function(){
-			game_resume();
-		};
-		function game_pause() {  
-			play_context.scene.pause();
-		}  
-		pause_button.onclick = function(){
-			game_pause();
-		};
-
-	  // *** MOVE CAMERA *** 
+	  // *** MOVE CAMERA ***
 	  // This is where we finish up the camera setting we started in the create() 
 	  // function. We set the movement speed of the camera and wire up the keys to
 	  // map to the actual movement.
@@ -509,6 +499,13 @@
 	var play_button=document.getElementById("play_button");
 	var pause_button=document.getElementById("pause_button");
 	var step_button=document.getElementById("step_button");
+
+	play_button.onclick = function () {
+	    if (play_context) play_context.scene.resume();
+	};
+	pause_button.onclick = function () {
+	    if (play_context) play_context.scene.pause();
+	};
 
 	document.querySelectorAll('.speed-btn').forEach(function (btn) {
 	    btn.onclick = function () {
