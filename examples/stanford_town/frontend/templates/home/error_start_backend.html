@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container" style="padding-top: 3em; max-width: 720px;">
+  <h3>后端未在运行</h3>
+  <p class="text-muted">
+    <code>/simulator_home</code> 是实时观战页，需要 <code>run_st_game.py</code> 正在写入
+    <code>temp_storage/curr_step.json</code>。当前没有检测到。
+  </p>
+  <hr>
+  <p>你可以：</p>
+  <ul>
+    <li><a href="/"><strong>打开 Dashboard</strong></a> — 启动一次新模拟，或选择已有存档回放。</li>
+    <li>或在命令行运行：
+      <pre>python launch_stanford_town.py --idea "..." --sim-code my_test</pre>
+    </li>
+  </ul>
+</div>
+{% endblock content %}

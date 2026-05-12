@@ -594,24 +594,42 @@ class STRole(Role):
         logger.info(f"Role: {self.name} new_day: {new_day}")
         self.rc.scratch.curr_time = self.curr_time
 
-        # get maze_env from self.rc.env, and observe env info
-        observed = await self.observe()
+        # Isolate per-persona failures: env.run() awaits asyncio.gather on every role,
+        # so a single uncaught exception would abort the whole town and leave the
+        # frontend with no movement files. On failure, emit a stand-still frame and
+        # advance step so the simulation stays in lockstep across personas.
+        try:
+            # get maze_env from self.rc.env, and observe env info
+            observed = await self.observe()
 
-        # use self.rc.memory 's retrieve functions
-        retrieved = self.retrieve(observed)
+            # use self.rc.memory 's retrieve functions
+            retrieved = self.retrieve(observed)
 
-        plans = await plan(self, self.rc.env.get_roles(), new_day, retrieved)
+            plans = await plan(self, self.rc.env.get_roles(), new_day, retrieved)
 
-        await self.reflect()
+            await self.reflect()
 
-        # feed-back into maze_env
-        next_tile, pronunciatio, description = await self.execute(plans)
-        role_move = {
-            "movement": next_tile,
-            "pronunciatio": pronunciatio,
-            "description": description,
-            "chat": self.scratch.chat,
-        }
+            # feed-back into maze_env
+            next_tile, pronunciatio, description = await self.execute(plans)
+            role_move = {
+                "movement": next_tile,
+                "pronunciatio": pronunciatio,
+                "description": description,
+                "chat": self.scratch.chat,
+            }
+        except Exception as exc:
+            logger.exception(
+                f"Role: {self.name} _react failed at step {self.step}; "
+                f"emitting stand-still frame to keep town synchronized"
+            )
+            next_tile = self.scratch.curr_tile
+            role_move = {
+                "movement": next_tile,
+                "pronunciatio": "❌",
+                "description": f"recovering from internal error ({type(exc).__name__})",
+                "chat": None,
+            }
+
         save_movement(self.name, role_move, step=self.step, sim_code=self.sim_code, curr_time=self.curr_time)
 
         # step update

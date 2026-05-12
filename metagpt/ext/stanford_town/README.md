@@ -1,36 +1,68 @@
 ## Stanford Town Game
 
-### Pre-Description
-In order to facilitate GA( [generative_agents](https://github.com/joonspk-research/generative_agents) )'s frontend docking data (to avoid changing its code), you can set the value `temp_storage_path` to `temp_storage` of `generative_agents` when start `run_st_game.py`. like
-
-`python3 run_st_game.py --temp_storage_path path/to/ga/temp_storage xxx`  
-
-Or change the path under `const.py` like beflow  
+### Layout
+The GA ([generative_agents](https://github.com/joonspk-research/generative_agents)) frontend is now vendored under `examples/stanford_town/frontend/`; you no longer need to clone GA separately.
 
 ```
-STORAGE_PATH = EXAMPLE_PATH.joinpath("storage")
-TEMP_STORAGE_PATH = EXAMPLE_PATH.joinpath("temp_storage")
-# updated
-STORAGE_PATH = Path("{path/to/ga/storage}")
-TEMP_STORAGE_PATH = Path("{path/to/ga/temp_storage}")
+examples/stanford_town/
+├── storage/              # written by backend, read by frontend (shared)
+├── temp_storage/         # written by backend, read by frontend (shared)
+├── compressed_storage/   # GA-shipped demo simulations (used by frontend demo mode)
+├── frontend/             # vendored Django frontend
+└── run_st_game.py        # backend entrypoint
 ```
 
-This can be used to achieve docking of simulation data without changing the GA code. Otherwise, the GA code must be modified to adapt to the MG output path.  
+`metagpt/ext/stanford_town/utils/const.py` already points `STORAGE_PATH` / `TEMP_STORAGE_PATH` at the directories above, so the backend writes and the frontend reads the same locations out of the box — **the `--temp_storage_path` argument is no longer needed**.
 
-If you don't want to start from 0, copy other simulation directories under `generative_agents/environment/frontend_server/storage/` to `examples/stanford_town/storage`, and select a directory named `fork_sim_code`.  
+Bootstrap simulations available in `examples/stanford_town/storage/` (use as `fork_sim_code`):
+- `base_the_ville_isabella_maria_klaus` — 3-persona town (Isabella / Maria / Klaus)
+- `base_the_ville_n25` — 25-persona town
+
+For the larger July1_* simulations from the GA paper (~378 MB), copy them manually from the [GA repo](https://github.com/joonspk-research/generative_agents) into `examples/stanford_town/storage/`.
 
 ### Backend service startup
-The execution entry is `python3 run_st_game.py "Host a open lunch party at 13:00 pm" "base_the_ville_isabella_maria_klaus" "test_sim" 10`  
-or   
-`python3 run_st_game.py "Host a open lunch party at 13:00 pm" "base_the_ville_isabella_maria_klaus" "test_sim" 10 --temp_storage_path path/to/ga/temp_storage`  
 
-`idea` is the user's voice to the first Agent, and it is disseminated through this voice to see whether the final multi-agents achieve the goal of hosting or participating in the event.  
+```bash
+cd examples/stanford_town
+python run_st_game.py "Host a open lunch party at 13:00 pm" "base_the_ville_isabella_maria_klaus" "test_sim"
+```
+
+`idea` is the inner voice handed to the first agent and propagated from there; the multi-agent system is supposed to converge on hosting/attending the event.
 
 ### Frontend service startup
-Enter project folder `generative_agents`  
+First-time setup (isolated venv to avoid polluting the main project):
 
-Enter `environment/frontend_server` and use `python3 manage.py runserver` to start the front-end service.  
-Visit `http://localhost:8000/simulator_home` to enter the current simulation interface.  
+```powershell
+cd examples/stanford_town/frontend
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install "Django==4.2.*" django-cors-headers numpy
+```
+
+Run:
+
+```powershell
+cd examples/stanford_town/frontend
+.\.venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
+```
+
+`manage.py` chdirs to `examples/stanford_town/` on startup so GA's relative paths (`storage/`, `temp_storage/`, `compressed_storage/`) resolve to the shared directories above.
+
+- `http://localhost:8000/simulator_home` — current simulation viewer
+- `http://localhost:8000/replay/<sim_code>/<step>/` — replay a recorded simulation
+
+### Patches relative to upstream GA
+
+The vendored frontend has the following compatibility patches so it runs on Python 3.12 + Django 4.2 LTS:
+
+- `manage.py` — chdirs to `examples/stanford_town/` so storage is shared with the backend
+- `frontend_server/urls.py` — `url(...)` → `re_path(...)` (Django 4.0 removed `url`)
+- `frontend_server/settings/{base,local}.py` — drop `storages` from `INSTALLED_APPS` (`django-storages-redux` is Django-2.x only)
+- `frontend_server/utils.py` — drop `from storages.backends.s3boto import ...` (S3 deployment hook, unused locally)
+- `translator/views.py` — `from django.contrib.staticfiles.templatetags.staticfiles import static` → `from django.templatetags.static import static` (removed in Django 3.0)
+- `templates/**/*.html` — `{% load staticfiles %}` → `{% load static %}` (same as above)
+
+If you need GA's original `reverie/` backend, clone the GA repo separately; only the frontend is vendored here.
 
 ## Acknowledgements
 The reproduction work has referred the [generative_agents](https://github.com/joonspk-research/generative_agents), let's make a general statement here.  

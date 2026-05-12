@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container" style="padding-top: 2em; padding-bottom: 4em; max-width: 1100px;">
+
+  <h1 style="margin-bottom: 0.2em;">Stanford Town Dashboard</h1>
+  <p class="text-muted">启动新模拟 · 选择存档回放 · 一键基于存档重跑</p>
+
+  <div id="toast-zone"></div>
+
+  <!-- ============ 启动新模拟 ============ -->
+  <div class="panel panel-default" style="margin-top: 1.5em;">
+    <div class="panel-heading"><strong>▸ 启动新模拟</strong></div>
+    <div class="panel-body">
+      <form id="start-form">
+        <div class="form-group">
+          <label>Idea（首位 Agent 的 inner voice）</label>
+          <textarea name="idea" class="form-control" rows="2"
+            placeholder="例如：Host an open lunch party at 13:00 pm" required></textarea>
+        </div>
+
+        <div class="row">
+          <div class="form-group col-md-4">
+            <label>Sim code（新存档名，必须唯一）</label>
+            <input type="text" name="sim_code" class="form-control"
+              placeholder="例如：tea_test" required>
+          </div>
+          <div class="form-group col-md-5">
+            <label>
+              Fork from
+              <small class="text-muted">
+                <input type="checkbox" id="show-all-forks"> 显示全部存档
+              </small>
+            </label>
+            <select name="fork_sim_code" id="fork-select" class="form-control" required>
+              {% for code in fork_options %}
+                <option value="{{ code }}">{{ code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group col-md-3">
+            <label>Rounds</label>
+            <input type="number" name="n_round" class="form-control"
+              value="{{ default_n_round }}" min="1">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group col-md-3">
+            <label>Investment (USD)</label>
+            <input type="number" name="investment" class="form-control"
+              value="{{ default_investment }}" step="0.5" min="0">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">启动模拟</button>
+        <span class="text-muted" style="margin-left: 1em;">
+          调用 LLM，按 round × persona 计费；日志写入 <code>frontend/logs/&lt;sim_code&gt;/&lt;timestamp&gt;/{launch,stdout,llm,error}.log</code>。
+        </span>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ 已有存档 ============ -->
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <strong>▸ 已有存档</strong>
+      <span class="badge">{{ simulations|length }}</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+      {% if simulations %}
+      <table class="table table-hover" style="margin-bottom: 0;">
+        <thead>
+          <tr>
+            <th>sim_code</th>
+            <th>fork base</th>
+            <th>start_date</th>
+            <th class="text-right">step</th>
+            <th class="text-right">moves</th>
+            <th>personas</th>
+            <th style="width: 240px;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in simulations %}
+          <tr>
+            <td>
+              <code>{{ s.sim_code }}</code>
+              {% if s.is_base %}<span class="label label-info">base</span>{% endif %}
+            </td>
+            <td><small class="text-muted">{{ s.fork_sim_code }}</small></td>
+            <td><small>{{ s.start_date }}</small></td>
+            <td class="text-right">{{ s.step }}</td>
+            <td class="text-right">
+              {% if s.has_compressed %}
+                <small class="label label-primary" title="compressed_storage">压缩</small>
+              {% else %}
+                <small>{{ s.movement_steps }}</small>
+              {% endif %}
+            </td>
+            <td><small>{{ s.personas|join:", " }}</small></td>
+            <td>
+              {% if s.replay_url %}
+                <a class="btn btn-xs btn-success" href="{{ s.replay_url }}">▶ 回放</a>
+              {% else %}
+                <button class="btn btn-xs btn-default" disabled
+                        title="尚无 movement 数据，先跑一次模拟">▶ 回放</button>
+              {% endif %}
+              <button class="btn btn-xs btn-default rerun-btn"
+                      data-sim="{{ s.sim_code }}">↻ 重跑</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding: 2em; text-align: center;" class="text-muted">
+        <code>storage/</code> 下还没有任何含 <code>reverie/meta.json</code> 的存档。
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var ALL_SIMS = {{ all_sim_codes|safe }};
+  var BASE_SIMS = {{ fork_options|safe }};
+
+  function showToast(html, kind) {
+    kind = kind || "info";
+    var zone = document.getElementById("toast-zone");
+    var div = document.createElement("div");
+    div.className = "alert alert-" + kind + " alert-dismissible";
+    div.style.marginTop = "1em";
+    div.innerHTML = '<button type="button" class="close" data-dismiss="alert">&times;</button>' + html;
+    zone.appendChild(div);
+  }
+
+  function rebuildForkOptions(showAll) {
+    var sel = document.getElementById("fork-select");
+    var current = sel.value;
+    sel.innerHTML = "";
+    (showAll ? ALL_SIMS : BASE_SIMS).forEach(function (code) {
+      var opt = document.createElement("option");
+      opt.value = code; opt.textContent = code;
+      sel.appendChild(opt);
+    });
+    if ((showAll ? ALL_SIMS : BASE_SIMS).indexOf(current) >= 0) sel.value = current;
+  }
+  document.getElementById("show-all-forks").addEventListener("change", function (e) {
+    rebuildForkOptions(e.target.checked);
+  });
+
+  function setBusy(btn, busy) {
+    if (!btn) return;
+    if (busy) {
+      btn.dataset.originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML =
+        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>'
+        + ' 启动中…（约 10s）';
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+    }
+  }
+
+  function postStart(payload, successMsg, btn) {
+    var fd = new FormData();
+    Object.keys(payload).forEach(function (k) {
+      if (payload[k] !== null && payload[k] !== undefined && payload[k] !== "")
+        fd.append(k, payload[k]);
+    });
+    setBusy(btn, true);
+    fetch("/start_simulation/", { method: "POST", body: fd })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (resp) {
+        if (!resp.ok || !resp.body.ok) {
+          showToast("❌ " + (resp.body.error || "启动失败"), "danger");
+          setBusy(btn, false);
+          return;
+        }
+        var b = resp.body;
+        if (b.redirect_url) {
+          showToast(
+            "🟢 " + successMsg + " <code>" + b.sim_code + "</code>，正在进入小镇…",
+            "success"
+          );
+          window.location.href = b.redirect_url;
+          return;
+        }
+        showToast(
+          "🟢 " + successMsg + " <code>" + b.sim_code + "</code>（pid " + b.pid + "）。"
+          + ' 后台仍在预热，稍后可手动进入 <a href="/simulator_home">小镇</a>'
+          + '，或在完成后访问 <a href="' + b.replay_url + '">' + b.replay_url + "</a>。"
+          + ' 日志目录：<code>' + b.log_dir + "</code>",
+          "warning"
+        );
+        setBusy(btn, false);
+      })
+      .catch(function (err) {
+        showToast("❌ 请求失败：" + err, "danger");
+        setBusy(btn, false);
+      });
+  }
+
+  document.getElementById("start-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var fd = new FormData(e.target);
+    var payload = {};
+    fd.forEach(function (v, k) { payload[k] = v; });
+    var btn = e.target.querySelector('button[type="submit"]') || e.submitter;
+    postStart(payload, "已启动新模拟", btn);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".rerun-btn"), function (btn) {
+    btn.addEventListener("click", function () {
+      var orig = btn.getAttribute("data-sim");
+      var ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
+      var def = orig + "_rerun_" + ts;
+      var newCode = prompt("新 sim_code（fork 自 " + orig + "）：", def);
+      if (!newCode) return;
+      var idea = prompt("Idea（首位 Agent 的 inner voice）：", "");
+      if (!idea) return;
+      postStart(
+        { rerun_from: orig, sim_code: newCode, idea: idea, n_round: {{ default_n_round }}, investment: {{ default_investment }} },
+        "已基于 " + orig + " 重跑为",
+        btn
+      );
+    });
+  });
+})();
+</script>
+{% endblock content %}

@@ -30,8 +30,10 @@ metagpt/                 # 主包
   software_company.py    # CLI + generate_repo 入口
 config/                  # 用户配置示例（config2.example.yaml）
 examples/                # 可运行的示例
+  stanford_town/         # ★ 含 vendored GA 前端，详见下文「Vendored 第三方」
 tests/                   # Pytest 测试套件（目录结构镜像 `metagpt/`）
 docs/                    # 文档及多语言 README
+launch_stanford_town.py  # Stanford Town 一键启动器（前后端）
 ```
 
 ## 环境搭建
@@ -90,6 +92,32 @@ pytest -k <表达式> -q
 
 扩展公开 API 时，须同步更新或补充 docstring，并添加对应测试。
 
+## Vendored 第三方：Stanford Town 前端
+
+`examples/stanford_town/frontend/` 是 [`joonspk-research/generative_agents`](https://github.com/joonspk-research/generative_agents) 仓库 `environment/frontend_server/` 的 vendor 副本（Django 前端），用于配合 `metagpt.ext.stanford_town` 后端的可视化。
+
+**目录布局（前后端共享 storage 是该模块的核心约定）：**
+
+```
+examples/stanford_town/
+├── storage/              # 后端写 + 前端读（共享）
+├── temp_storage/         # 后端写 + 前端读（共享，前端通过 curr_step.json 握手）
+├── compressed_storage/   # GA 自带的 demo 仿真
+├── frontend/             # vendored Django，含 6 处兼容补丁
+└── run_st_game.py        # 后端入口
+```
+
+**启动方式**：统一用根目录 `launch_stanford_town.py`，**不要再写新启动脚本或 README**。该脚本同时管理前后端子进程、清空全局代理、Ctrl+C 优雅退出。详见 `metagpt/ext/stanford_town/README.md`。
+
+**`frontend/` 子树的硬性约束**（修改前必读）：
+
+- 上游 GA 锁定 `Django==2.2`，本仓库已升级到 Django 4.2 LTS 并打了 6 处兼容补丁（`urls.py` 的 `url()` → `re_path()`、删除 `storages` app、`load staticfiles` → `load static` 等）。**新增/同步上游变更时，必须保留这些补丁，并同步更新 `metagpt/ext/stanford_town/README*.md` 末尾的补丁清单。**
+- `frontend/manage.py` 启动时会 `chdir` 到 `examples/stanford_town/`，让 GA 视图里的相对路径 `storage/`、`temp_storage/`、`compressed_storage/` 命中共享目录。**不要移除这段 chdir，也不要把前端 cwd 改到 `frontend/` 之外。**
+- `metagpt/ext/stanford_town/utils/mg_ga_transform.py` 的 `save_movement` 末尾必须保留 `write_curr_step({"step": step})`。GA 前端 `home` 视图会 `os.remove(curr_step.json)` 消费即删，缺了这一步前端只会显示 "Please start the backend first."
+- `examples/stanford_town/frontend/.gitignore` 通过 `!*.png`、`!*.csv`、`!db.sqlite3` 反向放行了仓库根 `.gitignore` 屏蔽的资源文件。**新增 sprite 或 maze 时不要被根级规则误伤。**
+
+**不要 vendor 进来的部分**：GA 的 `reverie/` 后端（已被 MetaGPT 替代）、`storage/July1_*` 系列大尺寸 demo 仿真（~378 MB，按需自取）。
+
 ## 禁止事项
 
 - 不要提交密钥、真实 API key 或 `~/.metagpt/` 下的任何文件。
@@ -97,6 +125,7 @@ pytest -k <表达式> -q
 - 不要在 `async` 路径中引入同步阻塞调用（async 代码中禁用 `requests.get`，改用 `aiohttp`/`httpx`）。
 - 不要绕过 `Context` / 配置系统直接读取环境变量，应通过 `metagpt.config2.Config` 统一访问。
 - 不要向 `requirements.txt` 添加重型依赖，优先在 `setup.py` 的 `extras_require` 中声明。
+- 不要把 `examples/stanford_town/frontend/` 当成普通 MetaGPT 代码改动：它是 vendored 上游，所有修改都需要在 `metagpt/ext/stanford_town/README*.md` 的"补丁清单"中登记，且禁止把 GA 前端依赖（Django、django-cors-headers 等）写进主项目 `setup.py`/`requirements.txt`——前端用独立 venv `examples/stanford_town/frontend/.venv/`。
 
 ## 参考资源
 
@@ -104,3 +133,4 @@ pytest -k <表达式> -q
 - `docs/` — 设计文档及多语言指南
 - `examples/` — 规范用法示例，新示例应参照其风格
 - `config/config2.example.yaml` — 完整配置项参考
+- `metagpt/ext/stanford_town/README.md` / `README_CN.md` — Stanford Town 启动、目录布局与 vendor 补丁清单

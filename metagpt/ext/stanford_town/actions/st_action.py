@@ -12,6 +12,17 @@ from metagpt.ext.stanford_town.utils.const import PROMPTS_DIR
 from metagpt.logs import logger
 
 
+# Chat-tuned models (e.g. DeepSeek V4) wrap replies in conversational preamble
+# that consumes the tight max_tokens budget before the actual answer is emitted.
+# The original ST prompts assumed completion-style continuation. Floor the budget
+# and append a strict-output rule so chat models leave room for the real answer.
+GPT35_MIN_MAX_TOKENS = 64
+GPT35_STRICT_SUFFIX = (
+    "\n\n[Output rule] Reply with ONLY the answer in the shortest form possible. "
+    "No preamble, no explanation, no quotation marks, no trailing punctuation."
+)
+
+
 class STAction(Action):
     name: str = "STAction"
     prompt_dir: Path = PROMPTS_DIR
@@ -59,13 +70,15 @@ class STAction(Action):
         return await self.llm.aask(prompt)
 
     async def _run_gpt35_max_tokens(self, prompt: str, max_tokens: int = 50, retry: int = 3):
+        strict_prompt = prompt.rstrip() + GPT35_STRICT_SUFFIX
+        effective_max_tokens = max(max_tokens, GPT35_MIN_MAX_TOKENS)
         for idx in range(retry):
             try:
                 tmp_max_tokens_rsp = getattr(self.config.llm, "max_token", 1500)
-                setattr(self.config.llm, "max_token", max_tokens)
+                setattr(self.config.llm, "max_token", effective_max_tokens)
                 self.llm.use_system_prompt = False  # to make it behave like a non-chat completions
 
-                llm_resp = await self._aask(prompt)
+                llm_resp = await self._aask(strict_prompt)
 
                 setattr(self.config.llm, "max_token", tmp_max_tokens_rsp)
                 logger.info(f"Action: {self.cls_name} llm _run_gpt35_max_tokens raw resp: {llm_resp}")

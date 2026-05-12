@@ -1,0 +1,14 @@
+# Vendored from generative_agents/environment/frontend_server.
+#
+# The repository-root .gitignore excludes *.png, *.csv, db.sqlite3 and a
+# few other patterns that the GA frontend genuinely needs (the_ville
+# sprites, maze matrices, the Django DB). Re-include them here.
+!*.png
+!*.csv
+!db.sqlite3
+
+# Local-only artifacts produced by running the frontend.
+.venv/
+__pycache__/
+*.pyc
+*.log

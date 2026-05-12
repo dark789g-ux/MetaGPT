@@ -30,6 +30,12 @@ def save_movement(role_name: str, role_move: dict, step: int, sim_code: str, cur
     write_json_file(movement_path, movement)
     logger.info(f"save_movement at step: {step}, curr_time: {movement['meta']['curr_time']}")
 
+    # Refresh temp_storage/curr_step.json so the GA frontend can detect new
+    # frames. The frontend's `home` view consumes (deletes) this file on every
+    # poll, so it must be rewritten after every backend step. Multiple writes
+    # per step (one per agent) are harmless — they all carry the same `step`.
+    write_curr_step({"step": step})
+
 
 def save_environment(role_name: str, step: int, sim_code: str, movement: list[int]):
     environment_path = STORAGE_PATH.joinpath(f"{sim_code}/environment/{step}.json")

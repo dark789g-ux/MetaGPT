@@ -95,11 +95,14 @@ class MemoryTree(BaseModel):
         if not curr_arena:
             return ""
 
-        try:
-            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena]))
-        except Exception:
-            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena.lower()]))
-        return x
+        sector_tree = self.tree.get(curr_world, {}).get(curr_sector, {})
+        arena_objs = sector_tree.get(curr_arena) or sector_tree.get(curr_arena.lower())
+        if arena_objs is None:
+            logger.warning(
+                f"spatial_memory miss: arena '{arena}' not in tree; returning empty object list"
+            )
+            return ""
+        return ", ".join(list(arena_objs))
 
     def add_tile_info(self, tile_info: dict) -> None:
         if tile_info["world"]:

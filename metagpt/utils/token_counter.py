@@ -104,6 +104,11 @@ TOKEN_COSTS = {
     "deepseek-chat": {"prompt": 0.00027, "completion": 0.0011},
     "deepseek-coder": {"prompt": 0.00027, "completion": 0.0011},
     "deepseek-reasoner": {"prompt": 0.00055, "completion": 0.0022},
+    # DeepSeek V4 (https://api-docs.deepseek.com/zh-cn/quick_start/pricing)
+    # Prices below use the cache-miss tier (conservative for budget gating);
+    # converted from CNY/1M tokens at ~7.2 CNY/USD.
+    "deepseek-v4-flash": {"prompt": 0.00014, "completion": 0.00028},  # 1 / 2 CNY per 1M
+    "deepseek-v4-pro": {"prompt": 0.00042, "completion": 0.00083},  # 3 / 6 CNY per 1M (2.5折 until 2026-05-31)
     # For ark model https://www.volcengine.com/docs/82379/1099320
     "doubao-lite-4k-240515": {"prompt": 0.000043, "completion": 0.000086},
     "doubao-lite-32k-240515": {"prompt": 0.000043, "completion": 0.000086},
@@ -306,6 +311,8 @@ TOKEN_MAX = {
     "deepseek/deepseek-chat": 128000,  # end, for openrouter
     "deepseek-chat": 128000,
     "deepseek-coder": 128000,
+    "deepseek-v4-flash": 128000,
+    "deepseek-v4-pro": 128000,
     "deepseek-ai/DeepSeek-Coder-V2-Instruct": 32000,  # siliconflow
     "yi-large": 16385,
     "microsoft/wizardlm-2-8x22b": 65536,
