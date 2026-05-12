@@ -1,0 +1,145 @@
+{
+    "node_8": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 7,
+        "depth": 0,
+        "created": "2023-02-13 00:00:10",
+        "expiration": null,
+        "subject": "Maria Lopez",
+        "predicate": "Maria Lopez",
+        "object": "is",
+        "description": "",
+        "embedding_key": "Maria Lopez is sleeping",
+        "poignancy": 1,
+        "keywords": [
+            "is",
+            "Maria Lopez"
+        ],
+        "filling": []
+    },
+    "node_7": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 1,
+        "depth": 1,
+        "created": "2023-02-13 00:00:00",
+        "expiration": "2023-03-15 00:00:00",
+        "subject": "Maria Lopez",
+        "predicate": "plan",
+        "object": "Monday February 13",
+        "description": "",
+        "embedding_key": "This is Maria Lopez's plan for Monday February 13: wake up and complete the morning routine at 9:00 am, wake up and complete the morning routine at 9:00 am, study physics at Hobbs Cafe from 10:00 am to 1:00 pm, have lunch at 1:00 pm, stream on Twitch from 2:00 pm to 5:00 pm, have dinner at 6:00 pm, study physics from 7:00 pm to 9:00 pm, game from 9:00 pm to 12:00 am.",
+        "poignancy": 5,
+        "keywords": [
+            "plan"
+        ],
+        "filling": []
+    },
+    "node_6": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 6,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Dorm for Oak Hill College:Maria Lopez's room:computer",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "computer is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "computer"
+        ],
+        "filling": []
+    },
+    "node_5": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 5,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Dorm for Oak Hill College:Maria Lopez's room:blackboard",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "blackboard is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "blackboard"
+        ],
+        "filling": []
+    },
+    "node_4": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 4,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Dorm for Oak Hill College:Maria Lopez's room:closet",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "closet is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "closet"
+        ],
+        "filling": []
+    },
+    "node_3": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 3,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Dorm for Oak Hill College:Maria Lopez's room:desk",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "desk is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "desk"
+        ],
+        "filling": []
+    },
+    "node_2": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 2,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "Maria Lopez",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "Maria Lopez is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "Maria Lopez"
+        ],
+        "filling": []
+    },
+    "node_1": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 1,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Dorm for Oak Hill College:Maria Lopez's room:bed",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "bed is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "bed"
+        ],
+        "filling": []
+    }
+}
