@@ -26,6 +26,18 @@ _ERR_RE = re.compile(
 _SIM_CODE_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 
+def _to_iso(s: str, with_time: bool) -> str:
+    """Long-English datetime → ISO 'YYYY-MM-DD HH:MM:SS'. Returns '' on parse failure."""
+    if not s:
+        return ""
+    fmt = "%B %d, %Y, %H:%M:%S" if with_time else "%B %d, %Y"
+    try:
+        dt = datetime.strptime(s, fmt)
+    except ValueError:
+        return ""
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def st_root() -> Path:
     # frontend/translator/sim_utils.py -> parents[2] == examples/stanford_town/
     return Path(__file__).resolve().parents[2]
