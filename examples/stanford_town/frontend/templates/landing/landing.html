@@ -92,7 +92,8 @@
           <tr>
             <th>sim_code</th>
             <th>fork base</th>
-            <th>start_date</th>
+            <th>start_time</th>
+            <th>cur_time</th>
             <th class="text-right">step</th>
             <th class="text-right">moves</th>
             <th>personas</th>
@@ -107,7 +108,8 @@
               {% if s.is_base %}<span class="label label-info">base</span>{% endif %}
             </td>
             <td><small class="text-muted">{{ s.fork_sim_code }}</small></td>
-            <td><small>{{ s.start_date }}</small></td>
+            <td><small>{{ s.start_time }}</small></td>
+            <td><small>{{ s.cur_time }}</small></td>
             <td class="text-right">{{ s.step }}</td>
             <td class="text-right">
               {% if s.has_compressed %}
