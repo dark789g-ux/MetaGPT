@@ -46,6 +46,23 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label>
+            Personas <small class="text-muted" id="personas-source">（来自 fork base）</small>
+            <small style="margin-left: 1em;">
+              <a href="#" id="personas-all">全选</a> ·
+              <a href="#" id="personas-none">全不选</a>
+            </small>
+          </label>
+          <div id="personas-list"
+               style="border:1px solid #ddd; border-radius:4px; padding:0.5em 0.75em; max-height:180px; overflow:auto;">
+            <!-- rows injected by JS -->
+          </div>
+          <p class="help-block" id="personas-hint" style="display:none; color:#a94442;">
+            至少选择一位 persona。
+          </p>
+        </div>
+
         <div class="row">
           <div class="form-group col-md-3">
             <label>Investment (USD)</label>
@@ -128,6 +145,7 @@
 (function () {
   var ALL_SIMS = {{ all_sim_codes|safe }};
   var BASE_SIMS = {{ fork_options|safe }};
+  var SIM_PERSONAS = {{ sim_personas|safe }};
 
   function showToast(html, kind) {
     kind = kind || "info";
@@ -219,7 +237,7 @@
   Array.prototype.forEach.call(document.querySelectorAll(".rerun-btn"), function (btn) {
     btn.addEventListener("click", function () {
       var orig = btn.getAttribute("data-sim");
-      var ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
+      var ts = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
       var def = orig + "_rerun_" + ts;
       var newCode = prompt("新 sim_code（fork 自 " + orig + "）：", def);
       if (!newCode) return;
