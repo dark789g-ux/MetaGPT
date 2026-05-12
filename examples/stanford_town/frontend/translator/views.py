@@ -30,6 +30,7 @@ def landing(request):
     "simulations": sims,
     "fork_options": fork_options,
     "all_sim_codes": [s["sim_code"] for s in sims],
+    "sim_personas": {s["sim_code"]: s["personas"] for s in sims},
     "default_n_round": 30,
     "default_investment": 30.0,
   }
