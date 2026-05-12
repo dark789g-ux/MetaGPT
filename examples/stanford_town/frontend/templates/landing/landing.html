@@ -21,12 +21,12 @@
         </div>
 
         <div class="row">
-          <div class="form-group col-md-4">
+          <div class="form-group col-md-3">
             <label>Sim code（新存档名，必须唯一）</label>
             <input type="text" name="sim_code" class="form-control"
               placeholder="例如：tea_test" required>
           </div>
-          <div class="form-group col-md-5">
+          <div class="form-group col-md-4">
             <label>
               Fork from
               <small class="text-muted">
@@ -40,6 +40,11 @@
             </select>
           </div>
           <div class="form-group col-md-3">
+            <label>Start time <small class="text-muted">(HH:MM:SS)</small></label>
+            <input type="time" name="start_hms" id="start-hms" step="1"
+              class="form-control" value="00:00:00">
+          </div>
+          <div class="form-group col-md-2">
             <label>Rounds</label>
             <input type="number" name="n_round" class="form-control"
               value="{{ default_n_round }}" min="1">
@@ -148,6 +153,20 @@
   var ALL_SIMS = {{ all_sim_codes|safe }};
   var BASE_SIMS = {{ fork_options|safe }};
   var SIM_PERSONAS = {{ sim_personas|safe }};
+  var SIM_CURR_TIMES = {{ sim_curr_times|safe }};
+
+  // Extract "HH:MM:SS" from a long-English datetime like "February 13, 2023, 14:30:00".
+  function extractHMS(curr_time) {
+    if (!curr_time) return "00:00:00";
+    var m = curr_time.match(/(\d{2}:\d{2}:\d{2})$/);
+    return m ? m[1] : "00:00:00";
+  }
+
+  function updateStartHmsDefault() {
+    var fork = document.getElementById("fork-select").value;
+    var input = document.getElementById("start-hms");
+    if (input) input.value = extractHMS(SIM_CURR_TIMES[fork]);
+  }
 
   function showToast(html, kind) {
     kind = kind || "info";
@@ -276,10 +295,17 @@
     updateSubmitState();
   });
 
-  document.getElementById("fork-select").addEventListener("change", rebuildPersonaList);
-  document.getElementById("show-all-forks").addEventListener("change", rebuildPersonaList);
+  document.getElementById("fork-select").addEventListener("change", function () {
+    rebuildPersonaList();
+    updateStartHmsDefault();
+  });
+  document.getElementById("show-all-forks").addEventListener("change", function () {
+    rebuildPersonaList();
+    updateStartHmsDefault();
+  });
 
   rebuildPersonaList();
+  updateStartHmsDefault();
 
   function setBusy(btn, busy) {
     if (!btn) return;
