@@ -74,6 +74,12 @@ class STAction(Action):
         t0 = _time.monotonic()
         response: Optional[str] = None
         error: Optional[str] = None
+
+        cm = getattr(self.llm, "cost_manager", None)
+        pre_prompt_tokens = getattr(cm, "total_prompt_tokens", 0) if cm else 0
+        pre_completion_tokens = getattr(cm, "total_completion_tokens", 0) if cm else 0
+        pre_cost = getattr(cm, "total_cost", 0.0) if cm else 0.0
+
         try:
             response = await self.llm.aask(prompt)
             return response
@@ -86,13 +92,23 @@ class STAction(Action):
                 "temperature": getattr(cfg_llm, "temperature", None),
                 "max_tokens": getattr(cfg_llm, "max_token", None),
             }
+            usage = None
+            cost_usd = None
+            if cm:
+                dp = getattr(cm, "total_prompt_tokens", 0) - pre_prompt_tokens
+                dc = getattr(cm, "total_completion_tokens", 0) - pre_completion_tokens
+                if dp or dc:
+                    usage = {"prompt_tokens": dp, "completion_tokens": dc, "total_tokens": dp + dc}
+                d_cost = getattr(cm, "total_cost", 0.0) - pre_cost
+                if d_cost:
+                    cost_usd = round(d_cost, 6)
             _llm_logger.log_call(
                 prompt=prompt,
                 response=response,
                 model=getattr(cfg_llm, "model", None),
                 params=params,
-                usage=None,
-                cost_usd=None,
+                usage=usage,
+                cost_usd=cost_usd,
                 latency_ms=int((_time.monotonic() - t0) * 1000),
                 retry_idx=0,
                 used_fail_default=False,
