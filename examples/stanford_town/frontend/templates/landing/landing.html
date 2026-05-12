@@ -172,6 +172,113 @@
     rebuildForkOptions(e.target.checked);
   });
 
+  // --- Persona selection state ---------------------------------------------
+  // checked: Set of persona names currently ticked
+  // innerVoice: name of the persona who receives the idea (must be in checked)
+  var personaState = { checked: new Set(), innerVoice: null };
+
+  function currentForkPersonas() {
+    var fork = document.getElementById("fork-select").value;
+    return (SIM_PERSONAS[fork] || []).slice();
+  }
+
+  function rebuildPersonaList() {
+    var list = document.getElementById("personas-list");
+    var src = document.getElementById("personas-source");
+    var fork = document.getElementById("fork-select").value;
+    src.textContent = "（来自 " + fork + "）";
+
+    var names = currentForkPersonas();
+    personaState.checked = new Set(names);
+    personaState.innerVoice = names.length ? names[0] : null;
+
+    list.innerHTML = "";
+    if (!names.length) {
+      list.innerHTML = '<div class="text-muted"><em>该 base 未声明 personas</em></div>';
+      updateSubmitState();
+      return;
+    }
+    names.forEach(function (name) {
+      var row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.gap = "0.75em";
+      row.style.padding = "2px 0";
+      row.innerHTML =
+        '<label style="margin:0; flex:1; cursor:pointer;">' +
+          '<input type="checkbox" class="persona-cb" data-name="' + name + '" checked> ' +
+          name +
+        '</label>' +
+        '<label style="margin:0; cursor:pointer; color:#666;">' +
+          '<input type="radio" name="iv-radio" class="persona-iv" data-name="' + name + '"' +
+          (name === personaState.innerVoice ? ' checked' : '') + '> inner voice' +
+        '</label>';
+      list.appendChild(row);
+    });
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    var hint = document.getElementById("personas-hint");
+    var btn = document.querySelector('#start-form button[type="submit"]');
+    var ok = personaState.checked.size > 0;
+    hint.style.display = ok ? "none" : "";
+    if (btn) btn.disabled = !ok;
+    Array.prototype.forEach.call(document.querySelectorAll(".persona-iv"), function (r) {
+      r.disabled = !personaState.checked.has(r.dataset.name);
+    });
+  }
+
+  document.getElementById("personas-list").addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.classList.contains("persona-cb")) {
+      if (t.checked) personaState.checked.add(t.dataset.name);
+      else personaState.checked.delete(t.dataset.name);
+      if (!personaState.checked.has(personaState.innerVoice)) {
+        var iter = personaState.checked.values().next();
+        personaState.innerVoice = iter.done ? null : iter.value;
+        Array.prototype.forEach.call(document.querySelectorAll(".persona-iv"), function (r) {
+          r.checked = (r.dataset.name === personaState.innerVoice);
+        });
+      }
+      updateSubmitState();
+    } else if (t.classList.contains("persona-iv")) {
+      personaState.innerVoice = t.dataset.name;
+    }
+  });
+
+  document.getElementById("personas-all").addEventListener("click", function (e) {
+    e.preventDefault();
+    Array.prototype.forEach.call(document.querySelectorAll(".persona-cb"), function (cb) {
+      cb.checked = true; personaState.checked.add(cb.dataset.name);
+    });
+    if (!personaState.innerVoice) {
+      var first = currentForkPersonas()[0];
+      personaState.innerVoice = first || null;
+      var r = document.querySelector('.persona-iv[data-name="' + first + '"]');
+      if (r) r.checked = true;
+    }
+    updateSubmitState();
+  });
+
+  document.getElementById("personas-none").addEventListener("click", function (e) {
+    e.preventDefault();
+    Array.prototype.forEach.call(document.querySelectorAll(".persona-cb"), function (cb) {
+      cb.checked = false;
+    });
+    personaState.checked.clear();
+    personaState.innerVoice = null;
+    Array.prototype.forEach.call(document.querySelectorAll(".persona-iv"), function (r) {
+      r.checked = false;
+    });
+    updateSubmitState();
+  });
+
+  document.getElementById("fork-select").addEventListener("change", rebuildPersonaList);
+  document.getElementById("show-all-forks").addEventListener("change", rebuildPersonaList);
+
+  rebuildPersonaList();
+
   function setBusy(btn, busy) {
     if (!btn) return;
     if (busy) {
@@ -227,9 +334,15 @@
 
   document.getElementById("start-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (personaState.checked.size === 0) {
+      updateSubmitState();
+      return;
+    }
     var fd = new FormData(e.target);
     var payload = {};
     fd.forEach(function (v, k) { payload[k] = v; });
+    payload.personas = Array.from(personaState.checked).join(",");
+    payload.inner_voice = personaState.innerVoice || "";
     var btn = e.target.querySelector('button[type="submit"]') || e.submitter;
     postStart(payload, "已启动新模拟", btn);
   });
