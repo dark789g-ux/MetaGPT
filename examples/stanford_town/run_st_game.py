@@ -31,6 +31,7 @@ async def startup(
     n_round: int = 500,
     personas: Optional[str] = None,
     inner_voice: Optional[str] = None,
+    start_hms: Optional[str] = None,
 ):
     town = StanfordTown()
     logger.info("StanfordTown init environment")
@@ -52,6 +53,22 @@ async def startup(
         meta_path.write_text(json.dumps(reverie_meta, indent=2), encoding="utf-8")
         logger.info(f"persona subset applied: {selected}")
 
+    # Settle start_time + curr_time in the freshly-copied meta.json.
+    # When the caller provides --start_hms, override both with start_date + HMS;
+    # otherwise preserve fork-continuation semantics by writing start_time =
+    # the inherited curr_time (only if missing, so re-runs stay idempotent).
+    meta_path = STORAGE_PATH.joinpath(sim_code, "reverie", "meta.json")
+    reverie_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    start_date = reverie_meta["start_date"]
+    if start_hms:
+        full_dt = f"{start_date}, {start_hms}"
+        reverie_meta["start_time"] = full_dt
+        reverie_meta["curr_time"] = full_dt
+    else:
+        reverie_meta.setdefault("start_time", reverie_meta["curr_time"])
+    meta_path.write_text(json.dumps(reverie_meta, indent=2), encoding="utf-8")
+    logger.info(f"meta.json settled: start_time={reverie_meta['start_time']}, curr_time={reverie_meta['curr_time']}")
+
     iv = inner_voice or reverie_meta["persona_names"][0]
     if iv not in reverie_meta["persona_names"]:
         raise SystemExit(f"inner_voice '{iv}' not in personas {reverie_meta['persona_names']}")
@@ -66,12 +83,35 @@ async def startup(
             profile=role_name,
             sim_code=sim_code,
             step=reverie_meta.get("step", 0),
-            start_time=reverie_meta.get("start_date"),
+            start_time=reverie_meta.get("start_time", reverie_meta.get("start_date")),
             curr_time=reverie_meta.get("curr_time"),
             sec_per_step=reverie_meta.get("sec_per_step"),
             has_inner_voice=has_inner_voice,
         )
         roles.append(role)
+
+    # Drop per-step files belonging to a previous run that finished beyond
+    # this run's starting step. copy_folder() above wipes the dest in the
+    # normal flow, but a same-name re-run (fork_sim_code == sim_code, or
+    # any path that skips copy_folder) leaves stale env/N + movement/N
+    # behind. The frontend's home() view then picks a step from those
+    # leftovers; if movement/N is missing the update phase deadlocks and
+    # the Current Action / Location / Conversation panel never populates.
+    start_step = reverie_meta.get("step", 0)
+    for subdir in ("environment", "movement"):
+        d = STORAGE_PATH.joinpath(sim_code, subdir)
+        if not d.is_dir():
+            continue
+        for f in d.glob("*.json"):
+            try:
+                n = int(f.stem)
+            except ValueError:
+                continue
+            if n > start_step:
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
     # init temp_storage
     write_curr_sim_code({"sim_code": sim_code}, temp_storage_path)
@@ -95,6 +135,7 @@ def main(
     n_round: int = 500,
     personas: Optional[str] = None,
     inner_voice: Optional[str] = None,
+    start_hms: Optional[str] = None,
 ):
     """
     Args:
@@ -118,6 +159,7 @@ def main(
             n_round=n_round,
             personas=personas,
             inner_voice=inner_voice,
+            start_hms=start_hms,
         )
     )
 
