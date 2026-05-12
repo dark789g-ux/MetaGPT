@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  .log-row { border:1px solid #ddd; border-radius:6px; padding:8px 12px; margin-bottom:8px; background:#fafafa; }
+  .log-row.expanded { background:#fff; }
+  .log-summary { cursor:pointer; font-family:monospace; font-size:13px; display:flex; gap:12px; flex-wrap:wrap; }
+  .log-summary .action { font-weight:600; color:#005599; }
+  .log-summary .meta { color:#666; }
+  .log-summary .latency-bad { color:#c00; }
+  .log-body { display:none; margin-top:8px; }
+  .log-row.expanded .log-body { display:block; }
+  .log-section { background:#f4f4f4; border:1px solid #e0e0e0; border-radius:4px; padding:8px; margin-top:6px; }
+  .log-section pre { margin:0; white-space:pre-wrap; word-break:break-word; max-height:400px; overflow:auto; font-size:12px; }
+  .log-section .copy-btn { float:right; font-size:11px; }
+  .live-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .live-dot.on { background:#4caf50; box-shadow:0 0 6px #4caf50; }
+  .live-dot.off { background:#999; }
+  .filters { background:#f0f0f0; padding:12px; border-radius:6px; margin-bottom:16px; }
+  .filters label { margin-right:6px; font-weight:600; }
+  .filters input, .filters select { margin-right:12px; }
+</style>
+
+<div style="max-width:1200px; margin:0 auto; padding:1em;">
+  <h2>
+    Stanford Town · LLM Logs
+    <small class="text-muted">sim_code = <code>{{ sim_code }}</code></small>
+    <span style="float:right; font-size:14px;">
+      <span id="live-dot" class="live-dot off"></span><span id="live-text">offline</span>
+    </span>
+  </h2>
+
+  <div class="filters">
+    <label>Step</label>
+    <input id="f-step-min" type="number" size="4" placeholder="min" style="width:70px">
+    –
+    <input id="f-step-max" type="number" size="4" placeholder="max" style="width:70px">
+
+    <label>Persona</label>
+    <select id="f-persona"><option value="">All</option></select>
+
+    <label>Action</label>
+    <select id="f-action"><option value="">All</option></select>
+
+    <label><input id="f-failed" type="checkbox"> Only failed/retried</label>
+
+    <label>Search</label>
+    <input id="f-search" type="text" placeholder="prompt substring" style="width:220px">
+
+    <button id="btn-clear" class="btn btn-default btn-sm">Clear</button>
+    <button id="btn-pause" class="btn btn-default btn-sm">Pause autoscroll</button>
+    <button id="btn-bottom" class="btn btn-default btn-sm">Jump to bottom</button>
+    <button id="btn-earlier" class="btn btn-default btn-sm">Load earlier</button>
+    <span id="count" style="margin-left:12px; color:#666;"></span>
+  </div>
+
+  <div id="log-list"></div>
+</div>
+
+<script>
+(function () {
+  const SIM = "{{ sim_code }}";
+  const TAIL_URL = `/llm_logs/${SIM}/tail`;
+  const POLL_MS = 1500;
+  const INITIAL_LIMIT = 200;
+
+  let entries = [];          // all loaded records, sorted by seq asc
+  let earliestOffset = null; // byte offset of the earliest loaded entry
+  let nextOffset = 0;        // next byte offset to fetch for tail
+  let autoscroll = true;
+  let polling = false;
+  let pollTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  function fmtSummary(e) {
+    const failed = e.used_fail_default || e.error || (e.retry_idx && e.retry_idx > 0);
+    const tokens = e.usage ? `${e.usage.prompt_tokens}/${e.usage.completion_tokens}` : "?";
+    const cost = e.cost_usd != null ? `$${e.cost_usd.toFixed(5)}` : "";
+    const latencyClass = e.latency_ms > 3000 ? "latency-bad" : "";
+    return `
+      <span class="action">${e.action || "?"}</span>
+      <span>· ${e.persona || "?"}</span>
+      <span>· <a href="/replay/${SIM}/${e.step}/" target="_blank">step ${e.step}</a></span>
+      <span class="meta ${latencyClass}">· ${e.latency_ms}ms</span>
+      <span class="meta">· ${e.model || "?"}</span>
+      <span class="meta">· tokens ${tokens}</span>
+      <span class="meta">${cost}</span>
+      ${failed ? '<span style="color:#c00;">· ⚠ failed/retry</span>' : ""}
+    `;
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  }
+
+  function renderRow(e) {
+    const row = document.createElement("div");
+    row.className = "log-row";
+    row.dataset.seq = e.seq;
+    row.innerHTML = `
+      <div class="log-summary">
+        <span style="color:#999;">#${e.seq}</span>
+        ${fmtSummary(e)}
+      </div>
+      <div class="log-body">
+        <div class="log-section">
+          <button class="btn btn-default btn-xs copy-btn" data-field="prompt">copy</button>
+          <strong>PROMPT</strong>
+          <pre>${escapeHtml(e.prompt)}</pre>
+        </div>
+        <div class="log-section">
+          <button class="btn btn-default btn-xs copy-btn" data-field="response">copy</button>
+          <strong>RESPONSE</strong>
+          <pre>${escapeHtml(e.response)}</pre>
+        </div>
+        ${e.error ? `<div class="log-section" style="background:#fee;"><strong>ERROR</strong><pre>${escapeHtml(e.error)}</pre></div>` : ""}
+        <div class="log-section" style="background:#eef;">
+          <strong>META</strong>
+          <pre>${escapeHtml(JSON.stringify({
+            ts: e.ts, params: e.params, usage: e.usage, cost_usd: e.cost_usd,
+            retry_idx: e.retry_idx, used_fail_default: e.used_fail_default
+          }, null, 2))}</pre>
+        </div>
+      </div>
+    `;
+    row.querySelector(".log-summary").addEventListener("click", () => {
+      row.classList.toggle("expanded");
+    });
+    row.querySelectorAll(".copy-btn").forEach(btn => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const f = btn.dataset.field;
+        navigator.clipboard.writeText(e[f] || "");
+        btn.textContent = "copied";
+        setTimeout(() => (btn.textContent = "copy"), 800);
+      });
+    });
+    return row;
+  }
+
+  function passesFilter(e) {
+    const sMin = $("f-step-min").value, sMax = $("f-step-max").value;
+    if (sMin !== "" && e.step < +sMin) return false;
+    if (sMax !== "" && e.step > +sMax) return false;
+    const p = $("f-persona").value;
+    if (p && e.persona !== p) return false;
+    const a = $("f-action").value;
+    if (a && e.action !== a) return false;
+    if ($("f-failed").checked && !(e.used_fail_default || e.error || (e.retry_idx && e.retry_idx > 0))) return false;
+    const q = $("f-search").value.trim().toLowerCase();
+    if (q && !((e.prompt || "").toLowerCase().includes(q) || (e.response || "").toLowerCase().includes(q))) return false;
+    return true;
+  }
+
+  function rerender() {
+    const list = $("log-list");
+    list.innerHTML = "";
+    let shown = 0;
+    for (const e of entries) {
+      if (!passesFilter(e)) continue;
+      list.appendChild(renderRow(e));
+      shown++;
+    }
+    $("count").textContent = `${shown} / ${entries.length} entries`;
+    if (autoscroll) window.scrollTo(0, document.body.scrollHeight);
+  }
+
+  function refreshDropdowns() {
+    const personas = new Set(entries.map(e => e.persona).filter(Boolean));
+    const actions = new Set(entries.map(e => e.action).filter(Boolean));
+    const fillSelect = (id, values) => {
+      const sel = $(id);
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All</option>' + [...values].sort().map(v => `<option>${v}</option>`).join("");
+      sel.value = cur;
+    };
+    fillSelect("f-persona", personas);
+    fillSelect("f-action", actions);
+  }
+
+  function mergeEntries(newEntries) {
+    if (!newEntries.length) return;
+    const seen = new Set(entries.map(e => e.seq));
+    for (const e of newEntries) if (!seen.has(e.seq)) entries.push(e);
+    entries.sort((a, b) => a.seq - b.seq);
+  }
+
+  async function fetchTail() {
+    try {
+      const url = nextOffset === 0 && entries.length === 0
+        ? `${TAIL_URL}?offset=-1&limit=${INITIAL_LIMIT}`
+        : `${TAIL_URL}?offset=${nextOffset}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      mergeEntries(data.entries);
+      if (earliestOffset === null && data.entries.length) {
+        earliestOffset = (nextOffset === 0) ? 0 : earliestOffset;
+      }
+      nextOffset = data.next_offset;
+      $("live-dot").className = "live-dot " + (data.is_live ? "on" : "off");
+      $("live-text").textContent = data.is_live ? "live" : "offline";
+      refreshDropdowns();
+      rerender();
+      polling = data.is_live;
+    } catch (err) {
+      console.error("tail fetch failed", err);
+    } finally {
+      if (polling) pollTimer = setTimeout(fetchTail, POLL_MS);
+    }
+  }
+
+  // Wire up controls
+  ["f-step-min","f-step-max","f-persona","f-action","f-failed","f-search"].forEach(id => {
+    $(id).addEventListener("input", rerender);
+    $(id).addEventListener("change", rerender);
+  });
+  $("btn-clear").addEventListener("click", () => {
+    ["f-step-min","f-step-max","f-search"].forEach(id => $(id).value = "");
+    ["f-persona","f-action"].forEach(id => $(id).value = "");
+    $("f-failed").checked = false;
+    rerender();
+  });
+  $("btn-pause").addEventListener("click", (ev) => {
+    autoscroll = !autoscroll;
+    ev.target.textContent = autoscroll ? "Pause autoscroll" : "Resume autoscroll";
+  });
+  $("btn-bottom").addEventListener("click", () => window.scrollTo(0, document.body.scrollHeight));
+  $("btn-earlier").addEventListener("click", () => {
+    // Not implemented in v1: doubling INITIAL_LIMIT would require a different API call.
+    alert("Load earlier: not implemented in v1. Increase INITIAL_LIMIT or open the jsonl file directly.");
+  });
+
+  // Boot
+  polling = true;
+  fetchTail();
+})();
+</script>
+{% endblock content %}
