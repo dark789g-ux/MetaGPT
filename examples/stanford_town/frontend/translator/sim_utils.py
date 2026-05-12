@@ -188,6 +188,7 @@ def start_backend(
     log_dir: Path,
     personas: list[str] | None = None,
     inner_voice: str | None = None,
+    start_hms: str | None = None,
 ) -> tuple[subprocess.Popen, Path]:
     # One run = one timestamped directory under logs/<sim_code>/, holding
     # launch.log / stdout.log / llm.log / error.log. The returned Path points
@@ -210,6 +211,8 @@ def start_backend(
         cmd += ["--personas", ",".join(personas)]
     if inner_voice:
         cmd += ["--inner_voice", inner_voice]
+    if start_hms:
+        cmd += ["--start_hms", start_hms]
 
     env = os.environ.copy()
     env["HTTP_PROXY"] = ""
