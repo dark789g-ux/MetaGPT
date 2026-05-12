@@ -22,6 +22,10 @@ from django.templatetags.static import static
 from .models import *
 from . import sim_utils
 
+import re as _re
+
+_HMS_RE = _re.compile(r"^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$")
+
 def landing(request):
   root = sim_utils.st_root()
   sims = sim_utils.list_simulations(root / "storage", root / "compressed_storage")
@@ -31,6 +35,7 @@ def landing(request):
     "fork_options": fork_options,
     "all_sim_codes": [s["sim_code"] for s in sims],
     "sim_personas": {s["sim_code"]: s["personas"] for s in sims},
+    "sim_curr_times": {s["sim_code"]: s.get("curr_time", "") for s in sims},
     "default_n_round": 30,
     "default_investment": 30.0,
   }
@@ -55,6 +60,10 @@ def start_simulation(request):
     personas = [p.strip() for p in personas_raw.split(",") if p.strip()]
   else:
     personas = None
+
+  start_hms = (request.POST.get("start_hms") or "").strip()
+  if start_hms and not _HMS_RE.match(start_hms):
+    return JsonResponse({"ok": False, "error": "start_hms must be HH:MM:SS"}, status=400)
 
   try:
     n_round = int(request.POST.get("n_round") or 30)
@@ -94,6 +103,7 @@ def start_simulation(request):
       log_dir=Path(__file__).resolve().parent.parent / "logs",
       personas=personas,
       inner_voice=inner_voice,
+      start_hms=start_hms or None,
     )
   except Exception as exc:
     return JsonResponse({"ok": False, "error": f"failed to spawn backend: {exc}"}, status=500)
@@ -223,7 +233,7 @@ def home(request):
   f_curr_sim_code = "temp_storage/curr_sim_code.json"
   f_curr_step = "temp_storage/curr_step.json"
 
-  if not check_if_file_exists(f_curr_step): 
+  if not check_if_file_exists(f_curr_step):
     context = {}
     template = "home/error_start_backend.html"
     return render(request, template, context)
@@ -239,22 +249,65 @@ def home(request):
       persona_names += [[x, x.replace(" ", "_")]]
       persona_names_set.add(x)
 
+  # Pick the latest step that has BOTH env/N.json and movement/N.json AND
+  # both files belong to the current run. The old code used max(env file
+  # number) alone, which deadlocked the frontend whenever a previous run
+  # of the same sim_code had left behind env/N from a partially-written
+  # step (or just had a higher step than the current run): the JS would
+  # POST step=N to update_environment forever, waiting for a movement/N
+  # that never comes, and never enter the execute phase that fills in
+  # Current Action / Location / Conversation.
+  #
+  # run_st_game writes curr_step.json once at startup, before any env or
+  # movement file from this run, so its mtime separates this run's files
+  # (mtime >= curr_step mtime) from leftovers (older). Backend startup
+  # also purges stale per-step files explicitly (see run_st_game.startup),
+  # which makes this filter belt-and-suspenders for any flow that bypasses
+  # that cleanup (manual restart, fork_sim_code == sim_code, etc).
+  try:
+    run_start_mtime = os.path.getmtime(f_curr_step)
+  except OSError:
+    run_start_mtime = 0.0
+
+  def _fresh_step_ids(dirpath):
+    ids = set()
+    if not os.path.isdir(dirpath):
+      return ids
+    for p in find_filenames(dirpath, ".json"):
+      name = p.split("/")[-1]
+      if name.startswith("."):
+        continue
+      try:
+        s = int(name.split(".")[0])
+      except ValueError:
+        continue
+      try:
+        if os.path.getmtime(p) >= run_start_mtime:
+          ids.add(s)
+      except OSError:
+        continue
+    return ids
+
+  env_dir = f"storage/{sim_code}/environment"
+  mov_dir = f"storage/{sim_code}/movement"
+  env_ids = _fresh_step_ids(env_dir)
+  mov_ids = _fresh_step_ids(mov_dir)
+  ready_ids = env_ids & mov_ids
+  if ready_ids:
+    step = max(ready_ids)
+  elif env_ids:
+    step = max(env_ids)
+  else:
+    step = 0
+
   persona_init_pos = []
-  file_count = []
-  for i in find_filenames(f"storage/{sim_code}/environment", ".json"):
-    x = i.split("/")[-1].strip()
-    if x[0] != ".":
-      file_count += [int(x.split(".")[0])]
-  # Use the latest environment snapshot as the live step so refreshing the
-  # town page re-enters the running sim at its current step (no more one-shot
-  # curr_step.json consumption).
-  step = max(file_count) if file_count else 0
   curr_json = f'storage/{sim_code}/environment/{str(step)}.json'
-  with open(curr_json) as json_file:
-    persona_init_pos_dict = json.load(json_file)
-    for key, val in persona_init_pos_dict.items():
-      if key in persona_names_set:
-        persona_init_pos += [[key, val["x"], val["y"]]]
+  if os.path.exists(curr_json):
+    with open(curr_json) as json_file:
+      persona_init_pos_dict = json.load(json_file)
+      for key, val in persona_init_pos_dict.items():
+        if key in persona_names_set:
+          persona_init_pos += [[key, val["x"], val["y"]]]
 
   context = {"sim_code": sim_code,
              "step": step,
@@ -374,17 +427,21 @@ def replay_persona_state(request, sim_code, step, persona_name):
   a_mem_chat = []
   a_mem_thought = []
 
-  for count in range(len(associative.keys()), 0, -1): 
+  for count in range(len(associative.keys()), 0, -1):
     node_id = f"node_{str(count)}"
     node_details = associative[node_id]
 
-    if node_details["type"] == "event":
+    # Older sims written before the agent_memory save fix have neither "type"
+    # nor "memory_type" persisted (see metagpt.ext.stanford_town.memory.agent_memory).
+    node_type = node_details.get("type") or node_details.get("memory_type")
+
+    if node_type == "event":
       a_mem_event += [node_details]
 
-    elif node_details["type"] == "chat":
+    elif node_type == "chat":
       a_mem_chat += [node_details]
 
-    elif node_details["type"] == "thought":
+    elif node_type == "thought":
       a_mem_thought += [node_details]
   
   context = {"sim_code": sim_code,
