@@ -4,6 +4,7 @@
 #           README see `metagpt/ext/stanford_town/README.md`
 
 import asyncio
+import json
 from typing import Optional
 
 import fire
@@ -21,7 +22,14 @@ from metagpt.logs import logger
 
 
 async def startup(
-    idea: str, fork_sim_code: str, sim_code: str, temp_storage_path: str, investment: float = 30.0, n_round: int = 500
+    idea: str,
+    fork_sim_code: str,
+    sim_code: str,
+    temp_storage_path: str,
+    investment: float = 30.0,
+    n_round: int = 500,
+    personas: Optional[str] = None,
+    inner_voice: Optional[str] = None,
 ):
     town = StanfordTown()
     logger.info("StanfordTown init environment")
@@ -29,13 +37,29 @@ async def startup(
     # copy `storage/{fork_sim_code}` to `storage/{sim_code}`
     copy_folder(str(STORAGE_PATH.joinpath(fork_sim_code)), str(STORAGE_PATH.joinpath(sim_code)))
 
-    # get role names from `storage/{simulation_name}/reverie/meta.json` and then init roles
-    reverie_meta = get_reverie_meta(fork_sim_code)
+    # Read the new sim's meta (a fresh copy of the fork base's) so we can edit
+    # it in place if the caller asked for a persona subset.
+    reverie_meta = get_reverie_meta(sim_code)
+
+    if personas:
+        selected = [p.strip() for p in personas.split(",") if p.strip()]
+        unknown = set(selected) - set(reverie_meta["persona_names"])
+        if unknown:
+            raise SystemExit(f"unknown personas: {sorted(unknown)}")
+        reverie_meta["persona_names"] = selected
+        meta_path = STORAGE_PATH.joinpath(sim_code, "reverie", "meta.json")
+        meta_path.write_text(json.dumps(reverie_meta, indent=2), encoding="utf-8")
+        logger.info(f"persona subset applied: {selected}")
+
+    iv = inner_voice or reverie_meta["persona_names"][0]
+    if iv not in reverie_meta["persona_names"]:
+        raise SystemExit(f"inner_voice '{iv}' not in personas {reverie_meta['persona_names']}")
+
     roles = []
     sim_path = STORAGE_PATH.joinpath(sim_code)
     sim_path.mkdir(exist_ok=True)
-    for idx, role_name in enumerate(reverie_meta["persona_names"]):
-        has_inner_voice = True if idx == 0 else False
+    for role_name in reverie_meta["persona_names"]:
+        has_inner_voice = (role_name == iv)
         role = STRole(
             name=role_name,
             profile=role_name,
@@ -67,6 +91,8 @@ def main(
     temp_storage_path: Optional[str] = None,
     investment: float = 30.0,
     n_round: int = 500,
+    personas: Optional[str] = None,
+    inner_voice: Optional[str] = None,
 ):
     """
     Args:
@@ -76,6 +102,8 @@ def main(
         temp_storage_path: generative_agents temp_storage path inside `environment/frontend_server` to interact.
         investment: the investment of running agents
         n_round: rounds to run agents
+        personas: optional comma-separated subset of the fork base's persona_names; when set, the new sim's meta.json is rewritten to this subset.
+        inner_voice: optional persona name to receive the idea; must be in `personas` when both are given. Defaults to the first persona in meta.
     """
 
     asyncio.run(
@@ -86,6 +114,8 @@ def main(
             temp_storage_path=temp_storage_path,
             investment=investment,
             n_round=n_round,
+            personas=personas,
+            inner_voice=inner_voice,
         )
     )
 
