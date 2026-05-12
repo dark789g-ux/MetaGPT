@@ -78,11 +78,19 @@ def list_simulations(storage_dir: Path, compressed_dir: Path | None = None) -> l
         else:
             replay_url = ""
 
+        raw_start_time = meta.get("start_time", "")
+        if raw_start_time:
+            start_iso = _to_iso(raw_start_time, with_time=True)
+        else:
+            start_iso = _to_iso(meta.get("start_date", ""), with_time=False)
+        cur_iso = _to_iso(meta.get("curr_time", ""), with_time=True)
+
         rows.append({
             "sim_code": entry.name,
             "fork_sim_code": meta.get("fork_sim_code", ""),
-            "start_date": meta.get("start_date", ""),
-            "curr_time": meta.get("curr_time", ""),
+            "start_time": start_iso,
+            "cur_time": cur_iso,
+            "curr_time": meta.get("curr_time", ""),  # raw long-English for JS default
             "step": meta.get("step", 0),
             "personas": meta.get("persona_names", []),
             "is_base": entry.name.startswith("base_"),
