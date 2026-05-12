@@ -100,6 +100,42 @@ def validate_new_sim_code(sim_code: str, fork_sim_code: str, storage_dir: Path) 
     return None
 
 
+def validate_personas(
+    personas: list[str] | None,
+    inner_voice: str | None,
+    fork_sim_code: str,
+    storage_dir: Path,
+) -> str | None:
+    """Return an error string, or None when the persona selection is valid.
+
+    `personas is None` means the caller did not request subset selection — the
+    legacy "all personas from fork base, idx 0 as inner voice" path is taken
+    and this function short-circuits.
+    """
+    if personas is None:
+        return None
+    if not personas:
+        return "personas must not be empty."
+
+    meta_path = storage_dir / fork_sim_code / "reverie" / "meta.json"
+    if not meta_path.is_file():
+        return f"fork base '{fork_sim_code}' has no meta.json."
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"failed to read fork base meta.json: {exc}"
+
+    known = set(meta.get("persona_names", []))
+    unknown = [p for p in personas if p not in known]
+    if unknown:
+        return f"unknown personas: {', '.join(unknown)}"
+
+    if inner_voice is None or inner_voice not in personas:
+        return "inner_voice must be one of the selected personas."
+
+    return None
+
+
 def _demux_stdout(pipe, stdout_fh, llm_fh, error_fh) -> None:
     """Mirror every line to stdout.log; route LLM/error lines to their own files."""
     try:
