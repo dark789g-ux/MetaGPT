@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // AgentCard - one persona's current state; clicking focuses the camera.
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { AgentFrame } from '@/types/viewer'
 
 const props = defineProps<{
@@ -11,8 +13,19 @@ const emit = defineEmits<{
   (e: 'select', name: string): void
 }>()
 
+const route = useRoute()
+const router = useRouter()
+
+const simId = computed(() => String(route.params.id ?? ''))
+
 function onClick(): void {
   emit('select', props.agent.name)
+}
+
+function openDetails(): void {
+  void router.push(
+    `/sims/${simId.value}/personas/${encodeURIComponent(props.agent.name)}`,
+  )
 }
 </script>
 
@@ -28,6 +41,9 @@ function onClick(): void {
       <span class="agent-card__emoji">{{ props.agent.pronunciatio ?? '·' }}</span>
       <span class="agent-card__name">{{ props.agent.name }}</span>
       <a-tag class="agent-card__tile">{{ props.agent.x }}, {{ props.agent.y }}</a-tag>
+      <a-button size="small" type="link" @click.stop="openDetails">
+        Details
+      </a-button>
     </div>
     <div class="agent-card__desc">
       {{ props.agent.description ?? 'idle' }}

@@ -144,10 +144,9 @@ export async function getPersonaState(
   return res.data
 }
 
-// Retained from the M1 stub because src/api/personas.ts re-exports it. Not part
-// of the frozen M4 store API; the precise endpoint shape is finalized in M3.
 export interface PersonaMemoryOpts {
-  kind?: string
+  type?: string
+  before_step?: number
   limit?: number
   offset?: number
 }
@@ -157,9 +156,14 @@ export async function getPersonaMemory(
   name: string,
   opts: PersonaMemoryOpts = {},
 ): Promise<PersonaState> {
+  const params: Record<string, string | number> = {}
+  if (opts.type != null) params.type = opts.type
+  if (opts.before_step != null) params.before_step = opts.before_step
+  if (opts.limit != null) params.limit = opts.limit
+  if (opts.offset != null) params.offset = opts.offset
   const res = await apiClient.get<PersonaState>(
     `/sims/${id}/personas/${encodeURIComponent(name)}/memory`,
-    { params: opts },
+    { params },
   )
   return res.data
 }

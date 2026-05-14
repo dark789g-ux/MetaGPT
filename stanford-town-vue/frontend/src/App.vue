@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import {
   DashboardOutlined,
   ApiOutlined,
   ImportOutlined,
 } from '@ant-design/icons-vue'
+import { getHealth } from '@/api/meta'
 
 const collapsed = ref<boolean>(false)
 const route = useRoute()
@@ -18,7 +19,7 @@ const selectedKeys = computed<string[]>(() => {
   return ['dashboard']
 })
 
-// Placeholder for backend connection status (M5+).
+// Backend reachability — polled against GET /api/health.
 const connectionStatus = ref<'unknown' | 'connected' | 'disconnected'>('unknown')
 const statusColor = computed(() => {
   switch (connectionStatus.value) {
@@ -29,6 +30,26 @@ const statusColor = computed(() => {
     default:
       return '#bfbfbf'
   }
+})
+
+let healthTimer: number | null = null
+
+async function pollHealth(): Promise<void> {
+  try {
+    await getHealth()
+    connectionStatus.value = 'connected'
+  } catch {
+    connectionStatus.value = 'disconnected'
+  }
+}
+
+onMounted(() => {
+  void pollHealth()
+  healthTimer = window.setInterval(() => void pollHealth(), 15000)
+})
+
+onUnmounted(() => {
+  if (healthTimer != null) window.clearInterval(healthTimer)
 })
 </script>
 

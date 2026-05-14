@@ -71,6 +71,10 @@ function remove(sim: Simulation): void {
   void runAction('Delete', () => store.deleteSim(sim.id))
 }
 
+function llmLogs(sim: Simulation): void {
+  router.push(`/sims/${sim.id}/llm-logs`)
+}
+
 const columns = [
   { title: 'Sim Code', dataIndex: 'sim_code', key: 'sim_code' },
   { title: 'Status', key: 'status' },
@@ -112,6 +116,14 @@ const columns = [
         <a-space wrap>
           <a-button size="small" type="link" @click="view(record as Simulation)">
             View
+          </a-button>
+
+          <a-button
+            size="small"
+            type="link"
+            @click="llmLogs(record as Simulation)"
+          >
+            LLM Logs
           </a-button>
 
           <a-button

@@ -28,6 +28,16 @@ export interface MapMetaItem {
   sprite_sheet_url: string
 }
 
+export interface HealthOut {
+  status: string
+  version: string
+}
+
+export async function getHealth(): Promise<HealthOut> {
+  const res = await apiClient.get<HealthOut>('/health')
+  return res.data
+}
+
 export async function getEffectiveConfig(): Promise<EffectiveConfig> {
   const res = await apiClient.get<EffectiveConfig>('/config/effective')
   return res.data
