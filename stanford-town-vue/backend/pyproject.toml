@@ -66,3 +66,7 @@ ignore = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: long-running integration tests (e.g. a full mocked-LLM simulator tick); run with -m slow",
+]

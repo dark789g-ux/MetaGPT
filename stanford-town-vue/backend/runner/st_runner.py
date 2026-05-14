@@ -36,6 +36,7 @@ from typing import Any
 
 from loguru import logger
 
+from runner.llm_config import load_profile_context
 from runner.manager import RunContext
 from runner.step_sync import sync_step_to_db
 from storage.repos import make_repos
@@ -251,11 +252,21 @@ def _settle_meta(
 # ---------------------------------------------------------------------------
 
 
-def build_town(sim_code: str, work_dir: Path, *, inner_voice: str | None = None):
+def build_town(
+    sim_code: str,
+    work_dir: Path,
+    *,
+    inner_voice: str | None = None,
+    context: Any = None,
+):
     """Construct a ``StanfordTown`` + its ``STRole`` list from a working dir.
 
     Mirrors ``examples/stanford_town/run_st_game.py::startup`` but stops short
     of ``town.run`` — the runner drives ticks itself. Returns ``(town, roles)``.
+
+    ``context`` (optional) is a vendored ``core.context.Context`` whose
+    ``config.llm`` selects the LLM provider/model; when ``None`` the simulator
+    falls back to ambient ``core`` config.
     """
     # Local imports keep ``runner.st_runner`` importable even when the heavy
     # simulator dependency graph is slow to load / partially configured.
@@ -274,7 +285,7 @@ def build_town(sim_code: str, work_dir: Path, *, inner_voice: str | None = None)
     if iv not in persona_names:
         raise RunnerError(f"inner_voice {iv!r} not in personas {persona_names}")
 
-    town = StanfordTown()
+    town = StanfordTown(context=context) if context is not None else StanfordTown()
     roles = []
     for role_name in persona_names:
         role = STRole(
@@ -322,9 +333,12 @@ def _load_sim_params(ctx: RunContext) -> dict[str, Any]:
             )
         )
         personas: list[str] = []
+        llm_profile_id: int | None = None
         if snapshot is not None:
             pf = snapshot.persona_filter_json or {}
             personas = list(pf.get("personas") or [])
+            lp = snapshot.llm_profile_json or {}
+            llm_profile_id = lp.get("llm_profile_id")
         return {
             "sim_code": sim.sim_code,
             "fork_sim_code": sim.fork_sim_code,
@@ -333,8 +347,11 @@ def _load_sim_params(ctx: RunContext) -> dict[str, Any]:
             "maze_name": sim.maze_name,
             "start_time_iso": sim.start_time_iso,
             "inner_voice": sim.inner_voice,
+            "idea": sim.idea,
+            "investment": sim.investment,
             "step": sim.step,
             "personas": personas,
+            "llm_profile_id": llm_profile_id,
         }
 
 
@@ -370,10 +387,39 @@ async def stanford_town_runner(ctx: RunContext) -> None:
         sec_per_step=sec_per_step,
     )
 
+    # Resolve the LLM context from the simulation's chosen profile (if any).
+    # Falls back to ambient `core` config when no profile is attached.
+    sim_context = None
+    profile_id = params.get("llm_profile_id")
+    if profile_id:
+        try:
+            from config.settings import bootstrap_secret_key
+
+            fernet_key = bootstrap_secret_key()
+            sim_context = load_profile_context(
+                ctx.session_factory, profile_id, fernet_key
+            )
+        except Exception as exc:  # noqa: BLE001 — profile is best-effort
+            logger.warning(
+                "stanford_town_runner: could not load llm_profile_id={}: {} — "
+                "falling back to ambient config",
+                profile_id,
+                exc,
+            )
+
     town, roles = build_town(
-        sim_code, work_dir, inner_voice=params["inner_voice"]
+        sim_code,
+        work_dir,
+        inner_voice=params["inner_voice"],
+        context=sim_context,
     )
     await town.hire(roles)
+
+    # Kick the simulation off exactly like run_st_game.py's startup:
+    # invest a budget and publish the seed `idea` message. Without
+    # run_project() the roles stay idle and env.run() is a no-op.
+    town.invest(params.get("investment") or 30.0)
+    town.run_project(params.get("idea") or "")
 
     # Step loop — one simulator tick per iteration. We do NOT call
     # town.run(n_round): it loops internally with no per-step hook.

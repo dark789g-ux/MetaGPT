@@ -313,9 +313,17 @@ class _FakeTown:
     def __init__(self, storage_dir: Path):
         self.env = _FakeEnv(storage_dir)
         self.hired = False
+        self.invested = None
+        self.project_idea = None
 
     async def hire(self, roles):
         self.hired = True
+
+    def invest(self, amount):
+        self.invested = amount
+
+    def run_project(self, idea, send_to: str = ""):
+        self.project_idea = idea
 
 
 def _patch_town(monkeypatch, work_dir: Path):

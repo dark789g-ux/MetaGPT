@@ -253,7 +253,7 @@ class Message(BaseModel):
             if "mapping" in ic:
                 # compatible with custom-defined ActionOutput
                 mapping = actionoutput_str_to_mapping(ic["mapping"])
-                actionnode_class = import_class("ActionNode", "backend.core.action_node")  # avoid circular import
+                actionnode_class = import_class("ActionNode", "core.action_node")  # avoid circular import
                 ic_obj = actionnode_class.create_model_class(class_name=ic["class"], mapping=mapping)
             elif "module" in ic:
                 # subclasses of BaseModel
@@ -266,7 +266,7 @@ class Message(BaseModel):
     @field_validator("cause_by", mode="before")
     @classmethod
     def check_cause_by(cls, cause_by: Any) -> str:
-        return any_to_str(cause_by if cause_by else import_class("UserRequirement", "backend.core._add_requirement"))
+        return any_to_str(cause_by if cause_by else import_class("UserRequirement", "core._add_requirement"))
 
     @field_validator("sent_from", mode="before")
     @classmethod
@@ -289,7 +289,7 @@ class Message(BaseModel):
             # compatible with custom-defined ActionOutput
             schema = ic.model_json_schema()
             ic_type = str(type(ic))
-            if "<class 'backend.core.action_node" in ic_type:
+            if "<class 'core.action_node" in ic_type:
                 # instruct_content from AutoNode.create_model_class, for now, it's single level structure.
                 mapping = actionoutout_schema_to_mapping(schema)
                 mapping = actionoutput_mapping_to_str(mapping)

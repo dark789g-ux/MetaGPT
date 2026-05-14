@@ -42,6 +42,8 @@ logs/
 secret.key
 .env
 .env.local
+# simulator runtime working dir (STORAGE_PATH / TEMP_STORAGE_PATH)
+backend/storage/stanford_town/
 
 # Frontend
 frontend/dist/
