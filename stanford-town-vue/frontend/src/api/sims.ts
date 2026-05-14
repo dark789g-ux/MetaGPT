@@ -1,108 +1,167 @@
 import { apiClient } from './client'
+import type { Simulation, SimStatus } from '@/types/sim'
 
-// Real return types come from openapi-typescript in M3; using `any` for now.
+// Backend wire shapes. Precise OpenAPI-generated types arrive in M3's codegen;
+// these hand-written shapes match the M3a/M3b endpoints documented for M4.
+
+export interface StepMovementOut {
+  step: number
+  persona_name: string
+  x: number
+  y: number
+  description: string
+  pronunciatio: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chat: any
+  location_path: string[] | string | null
+}
+
+export interface StepsPage {
+  items: StepMovementOut[]
+  total: number
+  from_step: number
+  to_step: number
+}
+
+export interface StepDetail {
+  step: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  environment: any
+  movements: StepMovementOut[]
+}
 
 export interface CreateSimBody {
   sim_code: string
+  fork_sim_code?: string
+  personas?: string[]
+  inner_voice?: string
+  idea?: string
+  n_round?: number
   start_hms?: string
+  sec_per_step?: number
+  maze_name?: string
+  llm_profile_id?: number
+  start?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [k: string]: any
 }
 
-export interface StepsRange {
-  from?: number
-  to?: number
+export interface ImportForkBody {
+  source_path: string
+  sim_code_override?: string
+  on_conflict: string
 }
 
-export interface PersonaMemoryOpts {
-  kind?: string
-  limit?: number
-  offset?: number
+export interface ImportResult {
+  sim_id: number
+  sim_code: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  counts: Record<string, any>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function listSims(): Promise<any> {
-  const res = await apiClient.get('/sims')
+export type ForkInfo = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PersonaOut = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PersonaState = Record<string, any>
+
+export async function listSims(
+  statusFilter?: SimStatus,
+  includeDeleted = false,
+): Promise<Simulation[]> {
+  const params: Record<string, unknown> = { include_deleted: includeDeleted }
+  if (statusFilter) params.status = statusFilter
+  const res = await apiClient.get<Simulation[]>('/sims', { params })
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getSim(id: number): Promise<any> {
-  const res = await apiClient.get(`/sims/${id}`)
+export async function getSim(id: number): Promise<Simulation> {
+  const res = await apiClient.get<Simulation>(`/sims/${id}`)
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createSim(body: CreateSimBody): Promise<any> {
-  const res = await apiClient.post('/sims', body)
+export async function createSim(body: CreateSimBody): Promise<Simulation> {
+  const res = await apiClient.post<Simulation>('/sims', body)
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function pauseSim(id: number): Promise<any> {
-  const res = await apiClient.post(`/sims/${id}/pause`)
-  return res.data
+export async function pauseSim(id: number): Promise<void> {
+  await apiClient.post(`/sims/${id}/pause`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function resumeSim(id: number): Promise<any> {
-  const res = await apiClient.post(`/sims/${id}/resume`)
-  return res.data
+export async function resumeSim(id: number): Promise<void> {
+  await apiClient.post(`/sims/${id}/resume`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function stopSim(id: number): Promise<any> {
-  const res = await apiClient.post(`/sims/${id}/stop`)
-  return res.data
+export async function stopSim(id: number): Promise<void> {
+  await apiClient.post(`/sims/${id}/stop`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function deleteSim(id: number): Promise<any> {
-  const res = await apiClient.delete(`/sims/${id}`)
-  return res.data
+export async function deleteSim(id: number): Promise<void> {
+  await apiClient.delete(`/sims/${id}`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getSteps(id: number, from?: number, to?: number): Promise<any> {
-  const params: StepsRange = {}
+export async function getSteps(id: number, from?: number, to?: number): Promise<StepsPage> {
+  const params: Record<string, number> = {}
   if (from != null) params.from = from
   if (to != null) params.to = to
-  const res = await apiClient.get(`/sims/${id}/steps`, { params })
+  const res = await apiClient.get<StepsPage>(`/sims/${id}/steps`, { params })
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getStep(id: number, step: number): Promise<any> {
-  const res = await apiClient.get(`/sims/${id}/steps/${step}`)
+export async function getStep(id: number, step: number): Promise<StepDetail> {
+  const res = await apiClient.get<StepDetail>(`/sims/${id}/steps/${step}`)
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getSimPersonas(id: number): Promise<any> {
-  const res = await apiClient.get(`/sims/${id}/personas`)
+export async function getSimPersonas(id: number): Promise<PersonaOut[]> {
+  const res = await apiClient.get<PersonaOut[]>(`/sims/${id}/personas`)
   return res.data
 }
 
 export async function getPersonaState(
   id: number,
   name: string,
-  step: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
-  const res = await apiClient.get(`/sims/${id}/personas/${encodeURIComponent(name)}/state`, {
-    params: { step },
-  })
+  step?: number,
+  k?: number,
+): Promise<PersonaState> {
+  const params: Record<string, number> = {}
+  if (step != null) params.step = step
+  if (k != null) params.k = k
+  const res = await apiClient.get<PersonaState>(
+    `/sims/${id}/personas/${encodeURIComponent(name)}/state`,
+    { params },
+  )
   return res.data
+}
+
+// Retained from the M1 stub because src/api/personas.ts re-exports it. Not part
+// of the frozen M4 store API; the precise endpoint shape is finalized in M3.
+export interface PersonaMemoryOpts {
+  kind?: string
+  limit?: number
+  offset?: number
 }
 
 export async function getPersonaMemory(
   id: number,
   name: string,
   opts: PersonaMemoryOpts = {},
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
-  const res = await apiClient.get(`/sims/${id}/personas/${encodeURIComponent(name)}/memory`, {
-    params: opts,
-  })
+): Promise<PersonaState> {
+  const res = await apiClient.get<PersonaState>(
+    `/sims/${id}/personas/${encodeURIComponent(name)}/memory`,
+    { params: opts },
+  )
+  return res.data
+}
+
+export async function listForks(): Promise<ForkInfo[]> {
+  const res = await apiClient.get<ForkInfo[]>('/sims/import/forks')
+  return res.data
+}
+
+export async function importFork(body: ImportForkBody): Promise<ImportResult> {
+  const res = await apiClient.post<ImportResult>('/sims/import', body)
   return res.data
 }

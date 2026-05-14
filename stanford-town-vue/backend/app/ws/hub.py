@@ -237,10 +237,14 @@ async def sim_socket(
     )
 
     # ----- history replay ----------------------------------------------
-    if current_step >= since_step + 1:
+    # `since_step` is "the last step the client already has". A fresh client
+    # sends 0, but it genuinely has *nothing* — so 0 means "replay from step 0
+    # inclusive". Any positive N means "I have through N, send N+1 onward".
+    from_step = 0 if since_step == 0 else since_step + 1
+    if current_step >= from_step:
         rows = repos.steps.list_movements_range(
             sim_id=sim_id,
-            from_step=since_step + 1,
+            from_step=from_step,
             to_step=current_step,
         )
         for ev in _build_replay_events(sim, rows):
