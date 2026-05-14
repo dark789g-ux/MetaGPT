@@ -220,6 +220,11 @@ class GenPronunciatio(STAction):
 
     async def run(self, role: "STRole", act_desp: str):
         def create_prompt_input(act_desp):
+            # Upstream Actions can hand us a non-str (e.g. ``False`` when a
+            # prior parse failed). Coerce defensively so a malformed LLM
+            # response never crashes the tick here.
+            if not isinstance(act_desp, str):
+                act_desp = str(act_desp)
             if "(" in act_desp:
                 act_desp = act_desp.split("(")[-1].split(")")[0]
             prompt_input = [act_desp]

@@ -197,17 +197,32 @@ class Environment(ExtEnv):
     async def run(self, k=1):
         """处理一次所有信息的运行
         Process all Role runs at once
+
+        Vendored change: a single role raising an uncaught exception must not
+        abort the whole tick (``asyncio.gather`` without ``return_exceptions``
+        propagates immediately and leaves siblings half-run). We gather with
+        ``return_exceptions=True`` and log any per-role failure instead, so the
+        town stays in lockstep — the role's own recovery path (e.g.
+        ``STRole._react``'s stand-still frame) handles most cases, and this is
+        the last-resort net for anything that escapes it.
         """
         for _ in range(k):
             futures = []
+            roles_in_run = []
             for role in self.roles.values():
                 if role.is_idle:
                     continue
-                future = role.run()
-                futures.append(future)
+                futures.append(role.run())
+                roles_in_run.append(role)
 
             if futures:
-                await asyncio.gather(*futures)
+                results = await asyncio.gather(*futures, return_exceptions=True)
+                for role, result in zip(roles_in_run, results):
+                    if isinstance(result, BaseException):
+                        logger.opt(exception=result).error(
+                            f"Environment.run: role {getattr(role, 'name', role)!r} "
+                            f"raised an uncaught exception this tick"
+                        )
             logger.debug(f"is idle: {self.is_idle}")
 
     def get_roles(self) -> dict[str, BaseRole]:

@@ -148,14 +148,6 @@ def test_materialize_and_build_town(session_factory, patched_llm):
 
 
 @pytest.mark.slow
-@pytest.mark.xfail(
-    reason="full mocked-LLM tick still surfaces an uncaught exception escaping "
-    "STRole._react (likely in update_role_env, which runs before the "
-    "per-persona try/except). The fork-materialize -> build_town -> hire path "
-    "is covered by test_materialize_and_build_town above; closing this gap is "
-    "tracked for M3b-4. Run with `pytest -m slow` to inspect.",
-    strict=False,
-)
 @pytest.mark.skipif(
     not _FORK_BASE.is_dir(),
     reason=f"bundled fork {_FORK_BASE_NAME} not present in this checkout",
@@ -163,12 +155,23 @@ def test_materialize_and_build_town(session_factory, patched_llm):
 def test_one_tick_end_to_end(session_factory, patched_llm):
     """Full mocked-LLM tick: build -> hire -> run_project -> one env.run().
 
-    Slow (~4 min) and currently ``xfail`` — skipped unless ``pytest -m slow``.
-    Goal: verify the integration plumbing end to end (the simulator writes
-    step-0 movement/environment files and ``sync_step_to_db`` lands them in
-    SQLite). The kickoff bug it originally caught — the runner missing
-    ``town.run_project()`` — is fixed; a remaining uncaught-exception path
-    keeps it from passing cleanly.
+    Slow (~3 min) — marked ``slow`` so it's excluded from the default suite;
+    run with ``pytest -m slow``. Verifies the integration plumbing end to
+    end: materialize_fork -> build_town -> hire -> run_project -> one
+    resilient env.run() tick -> all 3 personas write step-0
+    movement/environment files -> ``sync_step_to_db`` lands 3 rows in SQLite.
+
+    Getting this green required several robustness fixes (M3b-4):
+      * the runner was missing ``town.run_project()`` (roles stayed idle);
+      * ``Environment.run`` now gathers with ``return_exceptions=True`` so one
+        role can't abort the whole tick;
+      * ``add_inner_voice`` is isolated (it runs before ``_react``'s own
+        try/except) and ``run_event_triple`` / ``GenPronunciatio`` no longer
+        crash on a degraded (non-str / None) LLM response;
+      * ``PersonaMovement`` coerces odd field types instead of rejecting.
+
+    The agents don't behave *intelligently* under FakeLLM — that still needs
+    a real LLM and is a manual demo step — but the pipeline is proven sound.
     """
     from simulator.utils.const import STORAGE_PATH
 

@@ -130,7 +130,13 @@ class AgentEventTriple(STAction):
         prompt = self.generate_prompt_with_tmpl_filename(prompt_input, "generate_event_triple_v1.txt")
 
         output = await self._run_gpt35_max_tokens(prompt, max_tokens=30)
-        output = (role.scratch.name, output[0], output[1])
+        # A degraded LLM response can yield None or a too-short sequence;
+        # fall back to a neutral (subject, "is", "idle") triple instead of
+        # crashing on a subscript.
+        if isinstance(output, (list, tuple)) and len(output) >= 2:
+            output = (role.scratch.name, output[0], output[1])
+        else:
+            output = (role.scratch.name, "is", "idle")
         logger.info(f"Role: {role.name} Action: {self.cls_name} output: {output}")
         return output
 

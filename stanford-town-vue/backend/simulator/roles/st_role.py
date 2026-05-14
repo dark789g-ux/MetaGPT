@@ -190,7 +190,16 @@ class STRole(Role):
 
         if len(self.rc.news) == 1 and self.rc.news[0].cause_by == any_to_str(UserRequirement):
             logger.warning(f"Role: {self.name} add inner voice: {self.rc.news[0].content}")
-            await self.add_inner_voice(self.rc.news[0].content)
+            # `add_inner_voice` runs LLM-backed Actions *before* `_react`'s own
+            # try/except. Isolate it here so a degraded inner-voice setup never
+            # aborts the role's whole turn — the role still proceeds to _react.
+            try:
+                await self.add_inner_voice(self.rc.news[0].content)
+            except Exception:
+                logger.exception(
+                    f"Role: {self.name} add_inner_voice failed; "
+                    f"proceeding to _react without it"
+                )
 
         return 1  # always return 1 to execute role's `_react`
 

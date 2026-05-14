@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -63,18 +63,43 @@ class EnvironmentSnapshot(RootModel[dict[str, PersonaPosition]]):
 
 
 class PersonaMovement(BaseModel):
-    """One persona's movement delta for a single step."""
+    """One persona's movement delta for a single step.
+
+    Deliberately permissive: the live simulator builds this dict from Action
+    outputs, and a degraded run (a flaky LLM response, or the FakeLLM used in
+    tests) can yield odd field types — ``description`` may come back as a
+    bool, ``movement`` may be a tuple, etc. We coerce rather than reject so a
+    single bad frame never breaks step ingestion.
+    """
 
     model_config = ConfigDict(extra="allow")
 
-    # On-disk shape is always [x, y] (length-2). Use list[int] for parse-time
-    # flexibility; the exporter writes back a 2-element list.
-    movement: list[int]
+    # On-disk shape is normally [x, y]. Accept tuples / odd values and coerce.
+    movement: list[int] = Field(default_factory=lambda: [0, 0])
     pronunciatio: str | None = None
     description: str | None = None
     # When the persona is in conversation, `chat` is a list of [speaker, utterance]
-    # pairs. `null` otherwise.
-    chat: list[list[str]] | None = None
+    # pairs. `null` otherwise — but a degraded run can produce other shapes.
+    chat: Any = None
+
+    @field_validator("movement", mode="before")
+    @classmethod
+    def _coerce_movement(cls, v: Any) -> list[int]:
+        if v is None:
+            return [0, 0]
+        if isinstance(v, (list, tuple)) and len(v) >= 2:
+            try:
+                return [int(v[0]), int(v[1])]
+            except (TypeError, ValueError):
+                return [0, 0]
+        return [0, 0]
+
+    @field_validator("pronunciatio", "description", mode="before")
+    @classmethod
+    def _coerce_optional_str(cls, v: Any) -> str | None:
+        if v is None or isinstance(v, str):
+            return v
+        return str(v)
 
 
 class MovementMeta(BaseModel):
