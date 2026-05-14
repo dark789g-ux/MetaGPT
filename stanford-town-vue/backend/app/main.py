@@ -69,6 +69,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:  # noqa: BLE001
         logger.exception("bootstrap_secret_key failed: {}", exc)
     try:
+        from runner.bootstrap import bootstrap_runner
+
+        bootstrap_runner()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("runner bootstrap failed: {}", exc)
+    try:
         manager_singleton.scan_interrupted()
     except Exception as exc:  # noqa: BLE001
         logger.exception("scan_interrupted failed: {}", exc)

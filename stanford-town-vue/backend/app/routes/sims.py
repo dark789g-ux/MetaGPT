@@ -1,8 +1,11 @@
 """Simulation lifecycle + state endpoints.
 
-Wave-1 M3a: real handlers backed by the storage Repos layer. Endpoints that
-control a running task (pause/resume/stop) currently only flip persisted
-status fields — they will be wired to ``SimulationManager`` in M3b.
+M3a: real handlers backed by the storage Repos layer.
+M3b-2: pause/resume/stop are wired to :class:`SimulationManager`. When the sim
+is actively running in this process the manager drives the cooperative
+pause/stop flags (and writes the DB status itself); otherwise the endpoints
+fall back to a direct status flip so idle/imported rows still respond. ``POST``
+optionally spawns a run when ``start=True``.
 """
 
 from __future__ import annotations
@@ -11,10 +14,12 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 
 from app.deps import get_repos
+from runner.manager import manager_singleton
 from storage.models import (
     MemoryNodeType,
     SimulationConfigSnapshot,
@@ -60,6 +65,10 @@ class SimulationCreateIn(BaseModel):
     sec_per_step: int = 10
     maze_name: str = "the_ville"
     llm_profile_id: int | None = None
+    # When True, spawn the run immediately via SimulationManager. Defaults to
+    # False so the M3a "create does not spawn a task" contract holds; the
+    # frontend's launch form passes start=True explicitly.
+    start: bool = False
 
 
 class PersonaOut(BaseModel):
@@ -172,11 +181,16 @@ def _initial_iso(start_hms: str) -> str:
 
 @router.post("", status_code=201, response_model=SimulationOut)
 @router.post("/", status_code=201, response_model=SimulationOut, include_in_schema=False)
-def create_and_start(
+async def create_and_start(
     payload: SimulationCreateIn = Body(...),
     repos: Repos = Depends(get_repos),
 ) -> SimulationOut:
-    """Create a simulation row (IDLE). Does NOT spawn a task (that's M3b)."""
+    """Create a simulation row (IDLE).
+
+    When ``payload.start`` is True, also spawn the run via
+    :class:`SimulationManager`. ``start`` defaults to False, preserving the
+    M3a contract that plain creation does not spawn a task.
+    """
     start_hms = _parse_hms(payload.start_hms)
     iso = _initial_iso(start_hms)
 
@@ -206,7 +220,9 @@ def create_and_start(
             detail=f"Simulation with sim_code={payload.sim_code!r} already exists",
         ) from exc
 
-    if payload.llm_profile_id is not None:
+    # Always record a config snapshot when personas or an LLM profile are
+    # given — the runner reads persona_filter_json from it.
+    if payload.llm_profile_id is not None or payload.personas:
         snapshot = SimulationConfigSnapshot(
             sim_id=sim.id,
             llm_profile_json={"llm_profile_id": payload.llm_profile_id},
@@ -214,6 +230,18 @@ def create_and_start(
         )
         repos.simulations.session.add(snapshot)
         repos.simulations.session.commit()
+
+    sim_id = sim.id
+    if payload.start:
+        try:
+            await manager_singleton.start(sim_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("create_and_start: manager.start failed: {}", exc)
+            raise HTTPException(
+                status_code=500, detail=f"Failed to start simulation: {exc}"
+            ) from exc
+        repos.simulations.session.expire_all()
+        sim = repos.simulations.get_by_id(sim_id)
 
     return SimulationOut.model_validate(sim)
 
@@ -241,23 +269,35 @@ def get_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> SimulationOut:
 
 
 @router.post("/{sim_id}/pause", status_code=204)
-def pause_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
+async def pause_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
+    """Pause a sim. When it is running in this manager the cooperative pause
+    flag is used (the manager writes the DB status); otherwise fall back to a
+    direct status flip so imported/idle rows still respond."""
     _require_sim(repos, sim_id)
-    repos.simulations.set_status(sim_id, SimulationStatus.PAUSED)
+    if manager_singleton.is_running(sim_id):
+        await manager_singleton.pause(sim_id)
+    else:
+        repos.simulations.set_status(sim_id, SimulationStatus.PAUSED)
     return Response(status_code=204)
 
 
 @router.post("/{sim_id}/resume", status_code=204)
-def resume_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
+async def resume_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
     _require_sim(repos, sim_id)
-    repos.simulations.set_status(sim_id, SimulationStatus.RUNNING)
+    if manager_singleton.is_running(sim_id):
+        await manager_singleton.resume(sim_id)
+    else:
+        repos.simulations.set_status(sim_id, SimulationStatus.RUNNING)
     return Response(status_code=204)
 
 
 @router.post("/{sim_id}/stop", status_code=204)
-def stop_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
+async def stop_sim(sim_id: int, repos: Repos = Depends(get_repos)) -> Response:
     _require_sim(repos, sim_id)
-    repos.simulations.set_status(sim_id, SimulationStatus.STOPPED)
+    if manager_singleton.is_running(sim_id):
+        await manager_singleton.stop(sim_id)
+    else:
+        repos.simulations.set_status(sim_id, SimulationStatus.STOPPED)
     return Response(status_code=204)
 
 

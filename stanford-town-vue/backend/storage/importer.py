@@ -432,7 +432,8 @@ def _personas_to_movement_rows(personas_map: dict[str, Any]) -> list[dict[str, A
                 "y": int(movement[1]),
                 "description": description,
                 "pronunciatio": d.get("pronunciatio"),
-                "chat_json": d.get("chat"),
+                # StepRepo.upsert_movements_for_step reads the "chat" key.
+                "chat": d.get("chat"),
                 "location_path": location_path,
             }
         )
