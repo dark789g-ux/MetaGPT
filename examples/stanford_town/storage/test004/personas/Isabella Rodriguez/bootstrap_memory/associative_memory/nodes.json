@@ -1,0 +1,482 @@
+{
+    "node_24": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 20,
+        "depth": 0,
+        "created": "2023-02-13 08:08:40",
+        "expiration": null,
+        "subject": "the Ville:Johnson Park:park:park garden",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "park garden is idle",
+        "poignancy": 1,
+        "keywords": [
+            "park garden",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 24,
+        "type": "event"
+    },
+    "node_23": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 19,
+        "depth": 0,
+        "created": "2023-02-13 08:00:10",
+        "expiration": null,
+        "subject": "Isabella Rodriguez",
+        "predicate": "Isabella Rodriguez",
+        "object": "is",
+        "description": "",
+        "embedding_key": "Isabella Rodriguez is sleeping",
+        "poignancy": 1,
+        "keywords": [
+            "is",
+            "Isabella Rodriguez"
+        ],
+        "filling": [],
+        "node_count": 23,
+        "type": "event"
+    },
+    "node_22": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 4,
+        "depth": 1,
+        "created": "2023-02-13 08:00:00",
+        "expiration": "2023-03-15 08:00:00",
+        "subject": "Isabella Rodriguez",
+        "predicate": "plan",
+        "object": "Monday February 13",
+        "description": "",
+        "embedding_key": "This is Isabella Rodriguez's plan for Monday February 13: wake up and complete the morning routine at 6:00 am, wake up and complete the morning routine at 6:00 am, open Hobbs Cafe at 8:00 am, work at the counter until 8:00 pm, close the cafe at 8:00 pm.",
+        "poignancy": 5,
+        "keywords": [
+            "plan"
+        ],
+        "filling": [],
+        "node_count": 22,
+        "type": "thought"
+    },
+    "node_21": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 18,
+        "depth": 0,
+        "created": "2023-02-13 08:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:shelf",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "shelf is idle",
+        "poignancy": 1,
+        "keywords": [
+            "shelf",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 21,
+        "type": "event"
+    },
+    "node_20": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 17,
+        "depth": 0,
+        "created": "2023-02-13 08:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:closet",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "closet is idle",
+        "poignancy": 1,
+        "keywords": [
+            "closet",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 20,
+        "type": "event"
+    },
+    "node_19": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 16,
+        "depth": 0,
+        "created": "2023-02-13 08:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:refrigerator",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "refrigerator is idle",
+        "poignancy": 1,
+        "keywords": [
+            "refrigerator",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 19,
+        "type": "event"
+    },
+    "node_18": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 15,
+        "depth": 0,
+        "created": "2023-02-13 08:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:desk",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "desk is idle",
+        "poignancy": 1,
+        "keywords": [
+            "desk",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 18,
+        "type": "event"
+    },
+    "node_17": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 14,
+        "depth": 0,
+        "created": "2023-02-13 08:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:bed",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "bed is idle",
+        "poignancy": 1,
+        "keywords": [
+            "bed",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 17,
+        "type": "event"
+    },
+    "node_16": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 3,
+        "depth": 1,
+        "created": "2023-02-13 08:00:00",
+        "expiration": "2023-03-15 08:00:00",
+        "subject": "Isabella Rodriguez",
+        "predicate": "eat",
+        "object": "breakfast",
+        "description": "",
+        "embedding_key": "Isabella Rodriguez is eating breakfast.",
+        "poignancy": 1,
+        "keywords": [
+            "breakfast",
+            "Isabella Rodriguez",
+            "eat"
+        ],
+        "filling": [],
+        "node_count": 16,
+        "type": "thought"
+    },
+    "node_15": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 13,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:piano",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "piano is idle",
+        "poignancy": 1,
+        "keywords": [
+            "piano",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 15,
+        "type": "event"
+    },
+    "node_14": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 12,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:cafe customer seating",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "cafe customer seating is idle",
+        "poignancy": 1,
+        "keywords": [
+            "idle",
+            "cafe customer seating"
+        ],
+        "filling": [],
+        "node_count": 14,
+        "type": "event"
+    },
+    "node_13": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 11,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:refrigerator",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "refrigerator is idle",
+        "poignancy": 1,
+        "keywords": [
+            "refrigerator",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 13,
+        "type": "event"
+    },
+    "node_12": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 10,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:cooking area",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "cooking area is idle",
+        "poignancy": 1,
+        "keywords": [
+            "cooking area",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 12,
+        "type": "event"
+    },
+    "node_11": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 9,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:kitchen sink",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "kitchen sink is idle",
+        "poignancy": 1,
+        "keywords": [
+            "kitchen sink",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 11,
+        "type": "event"
+    },
+    "node_10": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 8,
+        "depth": 0,
+        "created": "2023-02-13 00:01:50",
+        "expiration": null,
+        "subject": "the Ville:Hobbs Cafe:cafe:behind the cafe counter",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "behind the cafe counter is idle",
+        "poignancy": 1,
+        "keywords": [
+            "behind the cafe counter",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 10,
+        "type": "event"
+    },
+    "node_9": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 7,
+        "depth": 0,
+        "created": "2023-02-13 00:00:10",
+        "expiration": null,
+        "subject": "Isabella Rodriguez",
+        "predicate": "Isabella Rodriguez",
+        "object": "is",
+        "description": "",
+        "embedding_key": "Isabella Rodriguez is sleeping",
+        "poignancy": 1,
+        "keywords": [
+            "is",
+            "Isabella Rodriguez"
+        ],
+        "filling": [],
+        "node_count": 9,
+        "type": "event"
+    },
+    "node_8": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 2,
+        "depth": 1,
+        "created": "2023-02-13 00:00:00",
+        "expiration": "2023-03-15 00:00:00",
+        "subject": "Isabella Rodriguez",
+        "predicate": "plan",
+        "object": "Monday February 13",
+        "description": "",
+        "embedding_key": "This is Isabella Rodriguez's plan for Monday February 13: wake up and complete the morning routine at 6:00 am, wake up and complete the morning routine at 6:00 am, open Hobbs Cafe at 8:00 am, work at the counter until 8:00 pm, close the cafe at 8:00 pm.",
+        "poignancy": 5,
+        "keywords": [
+            "plan"
+        ],
+        "filling": [],
+        "node_count": 8,
+        "type": "thought"
+    },
+    "node_7": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 6,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:shelf",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "shelf is idle",
+        "poignancy": 1,
+        "keywords": [
+            "shelf",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 7,
+        "type": "event"
+    },
+    "node_6": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 5,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:closet",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "closet is idle",
+        "poignancy": 1,
+        "keywords": [
+            "closet",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 6,
+        "type": "event"
+    },
+    "node_5": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 4,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:refrigerator",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "refrigerator is idle",
+        "poignancy": 1,
+        "keywords": [
+            "refrigerator",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 5,
+        "type": "event"
+    },
+    "node_4": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 3,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:desk",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "desk is idle",
+        "poignancy": 1,
+        "keywords": [
+            "desk",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 4,
+        "type": "event"
+    },
+    "node_3": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 2,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "the Ville:Isabella Rodriguez's apartment:main room:bed",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "bed is idle",
+        "poignancy": 1,
+        "keywords": [
+            "bed",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 3,
+        "type": "event"
+    },
+    "node_2": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 1,
+        "depth": 0,
+        "created": "2023-02-13 00:00:00",
+        "expiration": null,
+        "subject": "Isabella Rodriguez",
+        "predicate": "is",
+        "object": "idle",
+        "description": "",
+        "embedding_key": "Isabella Rodriguez is idle",
+        "poignancy": 1,
+        "keywords": [
+            "Isabella Rodriguez",
+            "idle"
+        ],
+        "filling": [],
+        "node_count": 2,
+        "type": "event"
+    },
+    "node_1": {
+        "cause_by": "metagpt.actions.add_requirement.UserRequirement",
+        "type_count": 1,
+        "depth": 1,
+        "created": "2023-02-13 00:00:00",
+        "expiration": "2023-03-15 00:00:00",
+        "subject": "Isabella Rodriguez",
+        "predicate": "want",
+        "object": "eat",
+        "description": "",
+        "embedding_key": "Isabella Rodriguez wants to eat",
+        "poignancy": 1,
+        "keywords": [
+            "want",
+            "Isabella Rodriguez",
+            "eat"
+        ],
+        "filling": [],
+        "node_count": 1,
+        "type": "thought"
+    }
+}

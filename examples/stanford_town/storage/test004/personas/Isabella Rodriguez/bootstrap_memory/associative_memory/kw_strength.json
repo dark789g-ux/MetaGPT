@@ -1,0 +1,13 @@
+{
+    "kw_strength_event": {
+        "is": 2,
+        "isabella rodriguez": 2
+    },
+    "kw_strength_thought": {
+        "eat": 2,
+        "isabella rodriguez": 2,
+        "want": 1,
+        "plan": 2,
+        "breakfast": 1
+    }
+}

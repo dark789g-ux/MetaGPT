@@ -2,8 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cat examples/stanford_town/requirements.txt; echo \"---config:---\"; ls ~/.metagpt/ 2>&1)",
-      "Read(//c/Users/dark7/**)",
       "Bash(python -c *",
+      "Bash(python -m *",
       "Bash(mkdir -p ~/.metagpt)",
       "Bash(cp config/config2.example.yaml ~/.metagpt/config2.yaml)",
       "Bash(git clone *)",
