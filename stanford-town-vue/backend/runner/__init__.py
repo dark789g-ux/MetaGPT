@@ -1,6 +1,20 @@
 """Simulation runner package — orchestrates simulator processes."""
 
-from runner.events import EventBus
-from runner.manager import SimulationManager, manager_singleton
+from runner.events import EventBus, EventType, SimEvent, Subscription
+from runner.manager import (
+    RunContext,
+    Runner,
+    SimulationManager,
+    manager_singleton,
+)
 
-__all__ = ["EventBus", "SimulationManager", "manager_singleton"]
+__all__ = [
+    "EventBus",
+    "EventType",
+    "RunContext",
+    "Runner",
+    "SimEvent",
+    "SimulationManager",
+    "Subscription",
+    "manager_singleton",
+]
