@@ -173,6 +173,9 @@ export const useSimSessionStore = defineStore('simSession', {
       wsClient = new SimWsClient(simId)
 
       wsClient.onSnapshot((sim, currentStep) => {
+        // A snapshot arrives on every (re)subscribe, so it's also our proof the
+        // socket is live again after a transient drop + auto-reconnect.
+        this.connected = true
         if (sim) {
           this.sim = sim as Simulation
           this.status = (sim as Simulation).status

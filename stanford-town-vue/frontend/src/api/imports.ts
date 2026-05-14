@@ -1,19 +1,53 @@
+// Import/Export API wrappers.
+//
+// The import side (listing forks + POST /sims/import) already lives in
+// `api/sims.ts` — `listForks` / `importFork`. We re-export them here under
+// import/export-flavoured names so the Import/Export view has a single home,
+// without defining a second copy of the request. The *export* endpoint
+// (POST /sims/{id}/export) has no wrapper anywhere else, so it is added here.
 import { apiClient } from './client'
+import {
+  listForks,
+  importFork,
+  type ForkInfo,
+  type ForkSource,
+  type ImportForkBody,
+  type ImportResult,
+  type OnConflict,
+} from './sims'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function importSim(sourcePath: string): Promise<any> {
-  const res = await apiClient.post('/imports', { source_path: sourcePath })
-  return res.data
+export type {
+  ForkInfo,
+  ForkSource,
+  ImportForkBody,
+  ImportResult,
+  OnConflict,
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function exportSim(id: number, targetDir: string): Promise<any> {
-  const res = await apiClient.post(`/sims/${id}/export`, { target_dir: targetDir })
-  return res.data
+/** GET /api/sims/import/forks */
+export const listForkCandidates = listForks
+
+/** POST /api/sims/import */
+export const importSimulation = importFork
+
+export type ExportLayout = 'compressed' | 'live'
+
+export interface ExportSimBody {
+  target_dir: string
+  layout: ExportLayout
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function listForks(): Promise<any> {
-  const res = await apiClient.get('/forks')
+export interface ExportResult {
+  sim_id: number
+  sim_code: string
+  output_path: string
+}
+
+/** POST /api/sims/{id}/export */
+export async function exportSimulation(
+  simId: number,
+  body: ExportSimBody,
+): Promise<ExportResult> {
+  const res = await apiClient.post<ExportResult>(`/sims/${simId}/export`, body)
   return res.data
 }

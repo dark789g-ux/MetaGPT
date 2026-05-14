@@ -1,47 +1,79 @@
 import { apiClient } from './client'
 
-export interface LlmProfileBody {
+export type LlmProvider = 'openai' | 'deepseek' | 'anthropic'
+
+export interface LlmProfileOut {
+  id: number
+  name: string
+  provider: string
+  model: string
+  base_url: string | null
+  max_tokens: number
+  temperature: number
+  created_at: string
+  // NOTE: api_key is NEVER returned by the backend.
+}
+
+export interface LlmProfileCreate {
+  name: string
+  provider: LlmProvider
+  model: string
+  api_key: string
+  base_url?: string | null
+  max_tokens?: number
+  temperature?: number
+  extra?: Record<string, unknown> | null
+}
+
+/** Same fields as Create, all optional. Omit/blank api_key to keep the existing key. */
+export interface LlmProfileUpdate {
   name?: string
-  provider?: string
+  provider?: LlmProvider
   model?: string
   api_key?: string
-  api_base?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any
+  base_url?: string | null
+  max_tokens?: number
+  temperature?: number
+  extra?: Record<string, unknown> | null
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function listLlmProfiles(): Promise<any> {
-  const res = await apiClient.get('/llm-profiles')
+export interface LlmProfileTestResult {
+  ok: boolean
+  elapsed_ms: number
+  model: string
+  sample_response: string | null
+  error: string | null
+}
+
+export async function listLlmProfiles(): Promise<LlmProfileOut[]> {
+  const res = await apiClient.get<LlmProfileOut[]>('/llm-profiles')
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getLlmProfile(id: number): Promise<any> {
-  const res = await apiClient.get(`/llm-profiles/${id}`)
+export async function createLlmProfile(
+  body: LlmProfileCreate,
+): Promise<LlmProfileOut> {
+  const res = await apiClient.post<LlmProfileOut>('/llm-profiles', body)
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createLlmProfile(body: LlmProfileBody): Promise<any> {
-  const res = await apiClient.post('/llm-profiles', body)
+export async function updateLlmProfile(
+  id: number,
+  body: LlmProfileUpdate,
+): Promise<LlmProfileOut> {
+  const res = await apiClient.put<LlmProfileOut>(`/llm-profiles/${id}`, body)
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function updateLlmProfile(id: number, body: LlmProfileBody): Promise<any> {
-  const res = await apiClient.put(`/llm-profiles/${id}`, body)
-  return res.data
+export async function deleteLlmProfile(id: number): Promise<void> {
+  await apiClient.delete(`/llm-profiles/${id}`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function deleteLlmProfile(id: number): Promise<any> {
-  const res = await apiClient.delete(`/llm-profiles/${id}`)
-  return res.data
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function testProfile(id: number): Promise<any> {
-  const res = await apiClient.post(`/llm-profiles/${id}/test`)
+export async function testLlmProfile(
+  id: number,
+): Promise<LlmProfileTestResult> {
+  const res = await apiClient.post<LlmProfileTestResult>(
+    `/llm-profiles/${id}/test`,
+  )
   return res.data
 }

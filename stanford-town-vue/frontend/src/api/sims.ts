@@ -46,21 +46,29 @@ export interface CreateSimBody {
   [k: string]: any
 }
 
+export type OnConflict = 'fail' | 'replace' | 'skip'
+
 export interface ImportForkBody {
   source_path: string
   sim_code_override?: string
-  on_conflict: string
+  on_conflict: OnConflict
 }
 
 export interface ImportResult {
   sim_id: number
   sim_code: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  counts: Record<string, any>
+  counts: Record<string, number>
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ForkInfo = Record<string, any>
+export type ForkSource = 'compressed_storage' | 'storage' | 'db'
+
+export interface ForkInfo {
+  sim_code: string
+  source: ForkSource
+  path: string
+  persona_names: string[]
+  step_count: number
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PersonaOut = Record<string, any>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

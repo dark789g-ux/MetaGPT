@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { useSimulationsStore } from '@/stores/simulations'
 import type { SimStatus } from '@/types/sim'
 import SimulationTable from '@/components/sim/SimulationTable.vue'
+import OnboardingBanner from '@/components/common/OnboardingBanner.vue'
 
 const router = useRouter()
 const store = useSimulationsStore()
@@ -43,6 +44,8 @@ function goImport(): void {
 
 <template>
   <div>
+    <OnboardingBanner />
+
     <div
       style="
         display: flex;

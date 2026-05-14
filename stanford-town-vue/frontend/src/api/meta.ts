@@ -1,16 +1,44 @@
+// Meta + effective-config API wrappers.
+//   GET /api/config/effective -> EffectiveConfig
+//   GET /api/meta/personas    -> PersonaMetaItem[]
+//   GET /api/meta/maps        -> MapMetaItem[]
 import { apiClient } from './client'
-import { getEffectiveConfig as _getEffectiveConfig } from './config'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getMetaPersonas(): Promise<any> {
-  const res = await apiClient.get('/meta/personas')
+export interface EffectiveConfig {
+  database_url: string
+  assets_dir: string
+  logs_dir: string
+  frontend_dev_origin: string
+  secret_key_present: boolean
+  llm_profiles_count: number
+}
+
+export interface PersonaMetaItem {
+  name: string
+  age: number
+  has_sprite: boolean
+  bootstrap_set: string
+}
+
+export interface MapMetaItem {
+  name: string
+  visuals_url: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta: Record<string, any>
+  sprite_sheet_url: string
+}
+
+export async function getEffectiveConfig(): Promise<EffectiveConfig> {
+  const res = await apiClient.get<EffectiveConfig>('/config/effective')
   return res.data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getMetaMaps(): Promise<any> {
-  const res = await apiClient.get('/meta/maps')
+export async function getMetaPersonas(): Promise<PersonaMetaItem[]> {
+  const res = await apiClient.get<PersonaMetaItem[]>('/meta/personas')
   return res.data
 }
 
-export const getEffectiveConfig = _getEffectiveConfig
+export async function getMetaMaps(): Promise<MapMetaItem[]> {
+  const res = await apiClient.get<MapMetaItem[]>('/meta/maps')
+  return res.data
+}
