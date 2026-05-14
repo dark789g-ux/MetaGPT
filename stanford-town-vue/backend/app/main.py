@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("stanford-town-vue starting")
     _run_alembic_upgrade()
     try:
-        bootstrap_secret_key()
+        bootstrap_secret_key(get_settings().expanded_secret_key_path())
     except Exception as exc:  # noqa: BLE001
         logger.exception("bootstrap_secret_key failed: {}", exc)
     try:

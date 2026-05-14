@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,7 +20,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/stanford_town.db"
     secret_key_path: str = "~/.stanford-town-vue/secret.key"
     logs_dir: str = "~/.stanford-town-vue/logs"
-    assets_dir: str = "./backend/assets"
+    # Resolved relative to the backend/ root (where pyproject.toml lives), not CWD.
+    assets_dir: str = "assets"
     frontend_dev_origin: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
@@ -36,6 +38,19 @@ class Settings(BaseSettings):
     def expanded_logs_dir(self) -> Path:
         return Path(self.logs_dir).expanduser().resolve()
 
+    def expanded_assets_dir(self) -> Path:
+        """Assets dir, resolved against the backend/ package root if relative.
+
+        ``settings.assets_dir`` is intentionally relative ("assets") so the
+        bundle works whether uvicorn is run from the backend/ directory or
+        from the project root.
+        """
+        p = Path(self.assets_dir).expanduser()
+        if p.is_absolute():
+            return p.resolve()
+        backend_root = Path(__file__).resolve().parent.parent  # config/ -> backend/
+        return (backend_root / p).resolve()
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
@@ -43,29 +58,58 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def bootstrap_secret_key() -> Path:
-    """Ensure a Fernet secret key exists on disk; create one if missing.
+def bootstrap_secret_key(path: Path | str | None = None) -> bytes:
+    """Generate a Fernet key at ``path`` if missing, and return its raw bytes.
 
-    Returns the path to the key file. Logs a warning the first time the key
-    is generated so the operator can back it up.
+    When ``path`` is omitted, the location from :func:`get_settings` is used.
+    Warns the operator on first creation so they can back the file up.
     """
     from cryptography.fernet import Fernet
 
-    settings = get_settings()
-    key_path = settings.expanded_secret_key_path()
+    if path is None:
+        key_path = get_settings().expanded_secret_key_path()
+    else:
+        key_path = Path(path).expanduser()
+
     key_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if not key_path.exists():
-        key = Fernet.generate_key()
-        key_path.write_bytes(key)
-        try:
-            key_path.chmod(0o600)
-        except OSError:
-            # chmod may be a no-op on Windows; ignore.
-            pass
-        logger.warning(
-            "Generated new secret key at {}. BACK THIS UP — losing it makes "
-            "encrypted LLM credentials unrecoverable.",
-            key_path,
-        )
-    return key_path
+    if key_path.exists():
+        return key_path.read_bytes()
+
+    key = Fernet.generate_key()
+    key_path.write_bytes(key)
+    try:
+        key_path.chmod(0o600)
+    except OSError:
+        # chmod is a no-op on Windows; ignore.
+        pass
+    logger.warning(
+        "Generated new Fernet secret key at {} — BACK THIS UP. Losing it "
+        "will make existing encrypted LLM profile keys unreadable.",
+        key_path,
+    )
+    return key
+
+
+def redact_db_url(url: str) -> str:
+    """Return ``url`` with any ``user:password@`` credentials masked.
+
+    Leaves all other components intact so the host/port/path remain visible
+    for debugging.
+    """
+    if not url:
+        return url
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    if not parts.netloc or "@" not in parts.netloc:
+        return url
+    userinfo, _, host = parts.netloc.rpartition("@")
+    if ":" in userinfo:
+        user, _, _ = userinfo.partition(":")
+        new_userinfo = f"{user}:***"
+    else:
+        new_userinfo = userinfo or "***"
+    new_netloc = f"{new_userinfo}@{host}" if new_userinfo else host
+    return urlunsplit((parts.scheme, new_netloc, parts.path, parts.query, parts.fragment))
